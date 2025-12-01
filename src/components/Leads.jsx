@@ -130,129 +130,6 @@ const Leads = () => {
 
       let leadsList = Array.from(leadsMap.values());
 
-      // Add demo data if no leads found
-      if (leadsList.length === 0) {
-        const demoLeads = [
-          {
-            _id: 'demo-lead-1',
-            phoneNumber: '+91 98765 43210',
-            name: 'Rajesh Kumar',
-            email: 'rajesh.kumar@example.com',
-            status: 'contacted',
-            lastCallDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-            lastCallStatus: 'completed',
-            campaignName: 'Product Inquiry Campaign',
-            totalCalls: 3,
-            notes: 'Keywords detected: proposal, quotes, pricing',
-            callType: 'Outgoing',
-            hasKeywords: true,
-            detectedKeywords: ['proposal', 'quotes', 'pricing'],
-            recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-            callId: 'demo-call-1',
-            duration: 245,
-            transcript: [
-              { text: 'Hello, I am interested in your product proposal.', speaker: 'customer' },
-              { text: 'Great! I can provide you with quotes for different packages.', speaker: 'agent' },
-              { text: 'What is the pricing for the premium plan?', speaker: 'customer' },
-              { text: 'Let me share the detailed quotation with you.', speaker: 'agent' }
-            ],
-          },
-          {
-            _id: 'demo-lead-2',
-            phoneNumber: '+91 98765 43211',
-            name: 'Priya Sharma',
-            email: 'priya.sharma@example.com',
-            status: 'contacted',
-            lastCallDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            lastCallStatus: 'completed',
-            campaignName: 'Sales Campaign',
-            totalCalls: 2,
-            notes: 'Keywords detected: quotation, estimate',
-            callType: 'Incoming',
-            hasKeywords: true,
-            detectedKeywords: ['quotation', 'estimate'],
-            recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-            callId: 'demo-call-2',
-            duration: 180,
-            transcript: [
-              { text: 'I need a quotation for your services.', speaker: 'customer' },
-              { text: 'Sure, I can provide you with an estimate.', speaker: 'agent' },
-              { text: 'When can I get the detailed quote?', speaker: 'customer' }
-            ],
-          },
-          {
-            _id: 'demo-lead-3',
-            phoneNumber: '+91 98765 43212',
-            name: 'Amit Patel',
-            email: 'amit.patel@example.com',
-            status: 'contacted',
-            lastCallDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            lastCallStatus: 'completed',
-            campaignName: 'Customer Acquisition',
-            totalCalls: 1,
-            notes: 'Keywords detected: proposal, cost',
-            callType: 'Outgoing',
-            hasKeywords: true,
-            detectedKeywords: ['proposal', 'cost'],
-            recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-            callId: 'demo-call-3',
-            duration: 320,
-            transcript: [
-              { text: 'Can you send me a proposal?', speaker: 'customer' },
-              { text: 'Absolutely! What is your budget range?', speaker: 'agent' },
-              { text: 'I want to know the cost before making a decision.', speaker: 'customer' }
-            ],
-          },
-          {
-            _id: 'demo-lead-4',
-            phoneNumber: '+91 98765 43213',
-            name: 'Sneha Reddy',
-            email: 'sneha.reddy@example.com',
-            status: 'contacted',
-            lastCallDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            lastCallStatus: 'completed',
-            campaignName: 'Product Inquiry Campaign',
-            totalCalls: 4,
-            notes: 'Keywords detected: quotes, price',
-            callType: 'Outgoing',
-            hasKeywords: true,
-            detectedKeywords: ['quotes', 'price'],
-            recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-            callId: 'demo-call-4',
-            duration: 195,
-            transcript: [
-              { text: 'I am looking for quotes on your premium package.', speaker: 'customer' },
-              { text: 'I will share the price details with you.', speaker: 'agent' },
-              { text: 'What is the best price you can offer?', speaker: 'customer' }
-            ],
-          },
-          {
-            _id: 'demo-lead-5',
-            phoneNumber: '+91 98765 43214',
-            name: 'Vikram Singh',
-            email: 'vikram.singh@example.com',
-            status: 'contacted',
-            lastCallDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            lastCallStatus: 'completed',
-            campaignName: 'Sales Campaign',
-            totalCalls: 2,
-            notes: 'Keywords detected: quotation, proposal',
-            callType: 'Incoming',
-            hasKeywords: true,
-            detectedKeywords: ['quotation', 'proposal'],
-            recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-            callId: 'demo-call-5',
-            duration: 275,
-            transcript: [
-              { text: 'I need a quotation for bulk orders.', speaker: 'customer' },
-              { text: 'I can prepare a proposal for you.', speaker: 'agent' },
-              { text: 'Please send the quotation by tomorrow.', speaker: 'customer' }
-            ],
-          },
-        ];
-        leadsList = demoLeads;
-      }
-
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         leadsList = leadsList.filter(lead =>
@@ -287,142 +164,6 @@ const Leads = () => {
     } catch (err) {
       console.error('Error fetching leads:', err);
       setError('Failed to load leads');
-      
-      // Add demo data on error as well
-      const demoLeads = [
-        {
-          _id: 'demo-lead-1',
-          phoneNumber: '+91 98765 43210',
-          name: 'Rajesh Kumar',
-          email: 'rajesh.kumar@example.com',
-          status: 'contacted',
-          lastCallDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          lastCallStatus: 'completed',
-          campaignName: 'Product Inquiry Campaign',
-          totalCalls: 3,
-          notes: 'Keywords detected: proposal, quotes, pricing',
-          source: 'Product Inquiry Campaign',
-          hasKeywords: true,
-          detectedKeywords: ['proposal', 'quotes', 'pricing'],
-          recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-          callId: 'demo-call-1',
-          duration: 245,
-          transcript: [
-            { text: 'Hello, I am interested in your product proposal.', speaker: 'customer' },
-            { text: 'Great! I can provide you with quotes for different packages.', speaker: 'agent' },
-            { text: 'What is the pricing for the premium plan?', speaker: 'customer' },
-            { text: 'Let me share the detailed quotation with you.', speaker: 'agent' }
-          ],
-        },
-        {
-          _id: 'demo-lead-2',
-          phoneNumber: '+91 98765 43211',
-          name: 'Priya Sharma',
-          email: 'priya.sharma@example.com',
-          status: 'contacted',
-          lastCallDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          lastCallStatus: 'completed',
-          campaignName: 'Sales Campaign',
-          totalCalls: 2,
-          notes: 'Keywords detected: quotation, estimate',
-          source: 'Sales Campaign',
-          hasKeywords: true,
-          detectedKeywords: ['quotation', 'estimate'],
-          recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-          callId: 'demo-call-2',
-          duration: 180,
-          transcript: [
-            { text: 'I need a quotation for your services.', speaker: 'customer' },
-            { text: 'Sure, I can provide you with an estimate.', speaker: 'agent' },
-            { text: 'When can I get the detailed quote?', speaker: 'customer' }
-          ],
-        },
-        {
-          _id: 'demo-lead-3',
-          phoneNumber: '+91 98765 43212',
-          name: 'Amit Patel',
-          email: 'amit.patel@example.com',
-          status: 'contacted',
-          lastCallDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          lastCallStatus: 'completed',
-          campaignName: 'Customer Acquisition',
-          totalCalls: 1,
-          notes: 'Keywords detected: proposal, cost',
-          source: 'Customer Acquisition',
-          hasKeywords: true,
-          detectedKeywords: ['proposal', 'cost'],
-          recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-          callId: 'demo-call-3',
-          duration: 320,
-          transcript: [
-            { text: 'Can you send me a proposal?', speaker: 'customer' },
-            { text: 'Absolutely! What is your budget range?', speaker: 'agent' },
-            { text: 'I want to know the cost before making a decision.', speaker: 'customer' }
-          ],
-        },
-        {
-          _id: 'demo-lead-4',
-          phoneNumber: '+91 98765 43213',
-          name: 'Sneha Reddy',
-          email: 'sneha.reddy@example.com',
-          status: 'contacted',
-          lastCallDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          lastCallStatus: 'completed',
-          campaignName: 'Product Inquiry Campaign',
-          totalCalls: 4,
-          notes: 'Keywords detected: quotes, price',
-          source: 'Product Inquiry Campaign',
-          hasKeywords: true,
-          detectedKeywords: ['quotes', 'price'],
-          recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-          callId: 'demo-call-4',
-          duration: 195,
-          transcript: [
-            { text: 'I am looking for quotes on your premium package.', speaker: 'customer' },
-            { text: 'I will share the price details with you.', speaker: 'agent' },
-            { text: 'What is the best price you can offer?', speaker: 'customer' }
-          ],
-        },
-        {
-          _id: 'demo-lead-5',
-          phoneNumber: '+91 98765 43214',
-          name: 'Vikram Singh',
-          email: 'vikram.singh@example.com',
-          status: 'contacted',
-          lastCallDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          lastCallStatus: 'completed',
-          campaignName: 'Sales Campaign',
-          totalCalls: 2,
-          notes: 'Keywords detected: quotation, proposal',
-          source: 'Sales Campaign',
-          hasKeywords: true,
-          detectedKeywords: ['quotation', 'proposal'],
-          recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-          callId: 'demo-call-5',
-          duration: 275,
-          transcript: [
-            { text: 'I need a quotation for bulk orders.', speaker: 'customer' },
-            { text: 'I can prepare a proposal for you.', speaker: 'agent' },
-            { text: 'Please send the quotation by tomorrow.', speaker: 'customer' }
-          ],
-        },
-      ];
-      
-      setLeads([
-        {
-          _id: 'lead-1',
-          phoneNumber: '+919876543210',
-          name: 'John Doe',
-          email: 'john@example.com',
-          status: 'contacted',
-          lastCallDate: new Date().toISOString(),
-          lastCallStatus: 'completed',
-          campaignName: 'Diwali Warm Leads',
-          totalCalls: 3,
-          notes: 'Interested in premium plan',
-          callType: 'Outgoing',
-        },
-      ]);
     } finally {
       setLoading(false);
     }
@@ -507,14 +248,14 @@ const Leads = () => {
     setUpdatingStatus(lead._id);
 
     try {
-      console.log('Updating lead status:', { 
-        leadId: lead._id, 
+      console.log('Updating lead status:', {
+        leadId: lead._id,
         leadIdType: typeof lead._id,
         newStatus,
         currentStatus: lead.actionStatus,
         callId: lead.callId
       });
-      
+
       // Use the lead's _id which should be the LeadsCallLog ID
       const leadId = lead._id || lead.callId;
       if (!leadId) {
@@ -525,11 +266,11 @@ const Leads = () => {
 
       const response = await callAPI.updateLeadStatus(leadId, newStatus);
       console.log('Lead status update response:', response);
-      
+
       // API service returns response.data, which is { success: true, data: { actionStatus: ... } }
       // So response = { success: true, data: { actionStatus: 'completed' } }
       const updatedStatus = response?.data?.actionStatus || newStatus;
-      
+
       // Verify the update was successful
       if (response?.success === true && updatedStatus) {
         // Update local state with the confirmed status from backend

@@ -1088,43 +1088,30 @@ const Campaigns = () => {
                   onChange={(e) => setFormData({ ...formData, phoneNumbers: e.target.value })}
                   className="w-full px-4 py-2 border border-zinc-200 rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 font-mono text-xs"
                 />
-                <div className="flex items-center gap-4 mt-3">
-                  <div className="flex gap-2">
-                    <input
-                      type="file"
-                      ref={csvFileInputRef}
-                      accept=".csv"
-                      onChange={(e) => handleCsvFileSelect(e, false)}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => csvFileInputRef.current?.click()}
-                      className="inline-flex items-center space-x-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg text-xs font-medium transition-colors"
-                    >
-                      <FaUpload size={14} />
-                      <span>Import CSV</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowCsvExample(true)}
-                      className="inline-flex items-center space-x-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg text-xs font-medium transition-colors"
-                    >
-                      <FaFileAlt size={14} />
-                      <span>CSV Example</span>
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.includeGreeting}
-                      onChange={(e) => setFormData({ ...formData, includeGreeting: e.target.checked })}
-                      className="w-4 h-4 text-emerald-500 bg-white border-zinc-300 rounded focus:ring-emerald-500 focus:ring-2 cursor-pointer"
-                    />
-                    <label className="text-xs font-medium text-zinc-700">
-                      Include Greeting
-                    </label>
-                  </div>
+                <div className="flex items-center gap-2 mt-3">
+                  <input
+                    type="file"
+                    ref={csvFileInputRef}
+                    accept=".csv"
+                    onChange={(e) => handleCsvFileSelect(e, false)}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => csvFileInputRef.current?.click()}
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    <FaUpload size={14} />
+                    <span>Import CSV</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCsvExample(true)}
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    <FaFileAlt size={14} />
+                    <span>CSV Example</span>
+                  </button>
                 </div>
               </div>
 
@@ -1310,43 +1297,30 @@ const Campaigns = () => {
                 <p className="text-xs text-zinc-500 mt-2">
                   Enter phone numbers, one per line or separated by commas
                 </p>
-                <div className="flex items-center gap-4 mt-3">
-                  <div className="flex gap-2">
-                    <input
-                      type="file"
-                      ref={scheduleCsvFileInputRef}
-                      accept=".csv"
-                      onChange={(e) => handleCsvFileSelect(e, true)}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => scheduleCsvFileInputRef.current?.click()}
-                      className="inline-flex items-center space-x-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg text-xs font-medium transition-colors"
-                    >
-                      <FaUpload size={14} />
-                      <span>Import CSV</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowCsvExample(true)}
-                      className="inline-flex items-center space-x-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg text-xs font-medium transition-colors"
-                    >
-                      <FaFileAlt size={14} />
-                      <span>CSV Example</span>
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={scheduleData.includeGreeting}
-                      onChange={(e) => setScheduleData({ ...scheduleData, includeGreeting: e.target.checked })}
-                      className="w-4 h-4 text-emerald-500 bg-white border-zinc-300 rounded focus:ring-emerald-500 focus:ring-2 cursor-pointer"
-                    />
-                    <label className="text-xs font-medium text-zinc-700">
-                      Include Greeting
-                    </label>
-                  </div>
+                <div className="flex items-center gap-2 mt-3">
+                  <input
+                    type="file"
+                    ref={scheduleCsvFileInputRef}
+                    accept=".csv"
+                    onChange={(e) => handleCsvFileSelect(e, true)}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => scheduleCsvFileInputRef.current?.click()}
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    <FaUpload size={14} />
+                    <span>Import CSV</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCsvExample(true)}
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    <FaFileAlt size={14} />
+                    <span>CSV Example</span>
+                  </button>
                 </div>
               </div>
 
