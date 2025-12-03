@@ -833,18 +833,20 @@ const DashboardOverview = () => {
                   <FaFileAlt className="text-emerald-500" size={18} />
                 </div>
                 <h3 className="text-lg font-semibold text-zinc-900">
-                  FAQ
+                  Privacy Policy
                 </h3>
               </div>
               <p className="text-sm text-zinc-500 mb-3">
-                Common questions about AI Calling Agent
+                Read how we safeguard your data and respect your privacy.
               </p>
-              <button
+              <a
+                href="/pdfs/Privacy_Policy.pdf"
+                download="Privacy_Policy.pdf"
                 className="mt-auto inline-flex items-center justify-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r from-teal-400 to-emerald-500 text-sm font-medium text-zinc-950 hover:brightness-105 transition-all"
               >
                 <FaDownload size={14} />
-                <span>Download FAQ PDF</span>
-              </button>
+                <span>Download Privacy Policy PDF</span>
+              </a>
             </div>
 
             {/* Terms & Conditions Card */}
@@ -860,12 +862,14 @@ const DashboardOverview = () => {
               <p className="text-sm text-zinc-500 mb-3">
                 Latest policy and compliance guidelines
               </p>
-              <button
+              <a
+                href="/pdfs/T&C.pdf"
+                download="Terms-and-Conditions.pdf"
                 className="mt-auto inline-flex items-center justify-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r from-teal-400 to-emerald-500 text-sm font-medium text-zinc-950 hover:brightness-105 transition-all"
               >
                 <FaDownload size={14} />
                 <span>Download Terms PDF</span>
-              </button>
+              </a>
             </div>
           </div>
         </div>
