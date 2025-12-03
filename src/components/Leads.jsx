@@ -353,7 +353,7 @@ const Leads = () => {
             <span>LEADS MANAGEMENT</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-zinc-900 uppercase">
-            LEADS
+            Leads
           </h1>
           <p className="text-sm text-zinc-500 mt-1">
             Manage and track your leads
