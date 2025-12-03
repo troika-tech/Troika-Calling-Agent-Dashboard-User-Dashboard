@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   FaPhone,
@@ -18,11 +18,13 @@ import {
   FaCalendar,
   FaTimesCircle,
   FaVolumeUp,
-  FaVolumeMute
+  FaVolumeMute,
+  FaWifi
 } from 'react-icons/fa';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { FiPhoneCall } from 'react-icons/fi';
 import { analyticsAPI, wsAPI, campaignAPI, creditsAPI, callAPI } from '../services/api';
+import { useCreditWebSocket } from '../hooks/useCreditWebSocket';
 
 const DashboardOverview = () => {
   const [loading, setLoading] = useState(true);
@@ -55,9 +57,47 @@ const DashboardOverview = () => {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [creditNotification, setCreditNotification] = useState(null); // For toast-like notifications
 
   // Ref to prevent duplicate fetches (especially with React.StrictMode)
   const hasFetchedRef = useRef(false);
+
+  // Get user ID for WebSocket connection
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userId = user._id || user.id;
+
+  // Handle real-time credit updates via WebSocket
+  const handleCreditUpdate = useCallback((data) => {
+    console.log('💰 Dashboard credit update:', data);
+
+    // Update credit balance immediately
+    if (data.newBalance !== undefined) {
+      setCreditBalance(data.newBalance);
+    }
+
+    // Show notification
+    if (data.type === 'credit:deducted') {
+      setCreditNotification({
+        type: 'deduction',
+        message: `${Math.abs(data.amount)} credits deducted`,
+        timestamp: Date.now()
+      });
+    } else if (data.type === 'credit:added') {
+      setCreditNotification({
+        type: 'addition',
+        message: `${data.amount} credits added`,
+        timestamp: Date.now()
+      });
+    }
+
+    // Clear notification after 3 seconds
+    setTimeout(() => {
+      setCreditNotification(null);
+    }, 3000);
+  }, []);
+
+  // Connect to WebSocket for real-time credit updates
+  const { connected: wsConnected, reconnecting: wsReconnecting } = useCreditWebSocket(userId, handleCreditUpdate);
 
   useEffect(() => {
     // Only fetch if we haven't fetched yet
@@ -89,8 +129,7 @@ const DashboardOverview = () => {
   const fetchTopCallsByDuration = async () => {
     try {
       setLoadingTopCalls(true);
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const userId = user._id || user.id;
+      // User ID already available from top-level declaration
 
       if (!userId) {
         console.warn('No userId found, skipping top calls fetch');
@@ -137,9 +176,7 @@ const DashboardOverview = () => {
       setLoading(true);
       setError(null);
 
-      // Get user from localStorage
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const userId = user._id || user.id;
+      // User ID already available from top-level declaration
 
       // Set user expiry date from localStorage user object
       if (user.expiryDate) {
@@ -671,19 +708,56 @@ const DashboardOverview = () => {
 
   return (
     <div className="space-y-6">
+      {/* Credit Update Notification Toast */}
+      {creditNotification && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg border transition-all duration-300 ${
+          creditNotification.type === 'addition' 
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+            : 'bg-amber-50 border-amber-200 text-amber-800'
+        }`}>
+          <div className="flex items-center gap-2">
+            {creditNotification.type === 'addition' ? (
+              <FaArrowUp className="text-emerald-500" />
+            ) : (
+              <FaArrowDown className="text-amber-500" />
+            )}
+            <span className="text-sm font-medium">{creditNotification.message}</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="space-y-3">
         <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 border border-emerald-100">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
           <span>Live Voice AI Operations</span>
         </div>
-        <div>
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-zinc-900">
-            Realtime Overview
-          </h1>
-          <p className="mt-2 text-sm text-zinc-500 max-w-xl">
-            Monitor calls, agents, and system health in one control surface.
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-zinc-900">
+              Realtime Overview
+            </h1>
+            <p className="mt-2 text-sm text-zinc-500 max-w-xl">
+              Monitor calls, agents, and system health in one control surface.
+            </p>
+          </div>
+          {/* WebSocket Connection Status */}
+          <div className="hidden sm:flex items-center gap-2">
+            {wsConnected ? (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span>Live</span>
+              </div>
+            ) : wsReconnecting ? (
+              <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+                <FaWifi className="animate-pulse" />
+                <span>Reconnecting...</span>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 

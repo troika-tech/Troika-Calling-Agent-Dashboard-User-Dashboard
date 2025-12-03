@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { FaDownload, FaSearch, FaSyncAlt, FaArrowUp, FaArrowDown, FaCoins, FaSortUp, FaSortDown } from 'react-icons/fa';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { FaDownload, FaSearch, FaSyncAlt, FaArrowUp, FaArrowDown, FaCoins, FaSortUp, FaSortDown, FaWifi } from 'react-icons/fa';
 import { creditsAPI } from '../services/api';
+import { useCreditWebSocket } from '../hooks/useCreditWebSocket';
 
 const CreditHistory = () => {
   const [transactions, setTransactions] = useState([]);
@@ -14,6 +15,48 @@ const CreditHistory = () => {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, pages: 0 });
   const [dateSortOrder, setDateSortOrder] = useState('desc'); // desc = newest first
+  const [autoRefresh, setAutoRefresh] = useState(true); // Auto-refresh enabled by default
+  const [creditNotification, setCreditNotification] = useState(null); // For toast-like notifications
+
+  // Get user ID for WebSocket connection
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userId = user._id || user.id;
+
+  // Handle real-time credit updates via WebSocket
+  const handleCreditUpdate = useCallback((data) => {
+    console.log('💰 Credit update received:', data);
+
+    // Update current balance immediately
+    if (data.newBalance !== undefined) {
+      setCurrentBalance(data.newBalance);
+    }
+
+    // Show notification
+    if (data.type === 'credit:deducted') {
+      setCreditNotification({
+        type: 'deduction',
+        message: `${Math.abs(data.amount)} credits deducted`,
+        timestamp: Date.now()
+      });
+    } else if (data.type === 'credit:added') {
+      setCreditNotification({
+        type: 'addition',
+        message: `${data.amount} credits added`,
+        timestamp: Date.now()
+      });
+    }
+
+    // Refresh transactions to show new entry
+    fetchTransactions();
+
+    // Clear notification after 3 seconds
+    setTimeout(() => {
+      setCreditNotification(null);
+    }, 3000);
+  }, []);
+
+  // Connect to WebSocket for real-time updates
+  const { connected: wsConnected, reconnecting: wsReconnecting } = useCreditWebSocket(userId, handleCreditUpdate);
 
   const fetchTransactions = async () => {
     try {
@@ -173,6 +216,24 @@ const CreditHistory = () => {
 
   return (
     <div className="space-y-6">
+      {/* Credit Update Notification Toast */}
+      {creditNotification && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg border transition-all duration-300 ${
+          creditNotification.type === 'addition' 
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+            : 'bg-amber-50 border-amber-200 text-amber-800'
+        }`}>
+          <div className="flex items-center gap-2">
+            {creditNotification.type === 'addition' ? (
+              <FaArrowUp className="text-emerald-500" />
+            ) : (
+              <FaArrowDown className="text-amber-500" />
+            )}
+            <span className="text-sm font-medium">{creditNotification.message}</span>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700 mb-3">
@@ -183,11 +244,33 @@ const CreditHistory = () => {
           <p className="text-sm text-zinc-500 mt-1">
             View all credit transactions including calls and admin additions.
           </p>
-          {lastUpdated && (
-            <p className="text-xs text-zinc-400 mt-1">
-              Last updated {lastUpdated.toLocaleString()}
-            </p>
-          )}
+          <div className="flex items-center gap-3 mt-1">
+            {lastUpdated && (
+              <p className="text-xs text-zinc-400">
+                Last updated {lastUpdated.toLocaleString()}
+              </p>
+            )}
+            {/* WebSocket Connection Status */}
+            {wsConnected ? (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span>Live updates</span>
+              </div>
+            ) : wsReconnecting ? (
+              <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                <FaWifi className="animate-pulse" />
+                <span>Reconnecting...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                <FaWifi />
+                <span>Offline</span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center space-x-3 mt-6 sm:mt-4">
           <button

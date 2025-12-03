@@ -20,6 +20,23 @@ const DEV_BACKEND = 'live'; // Change to 'local' or 'live'
 const LIVE_BACKEND_URL = 'https://calling-api.0804.in';
 
 /**
+ * Get WebSocket URL based on environment and API URL
+ * @returns {string} WebSocket URL
+ */
+const getWsUrl = () => {
+  const apiUrl = getApiBaseUrl();
+  
+  if (!apiUrl) {
+    // Local development with vite proxy - use same host with ws protocol
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}`;
+  }
+  
+  // Convert http(s) URL to ws(s) URL
+  return apiUrl.replace(/^http/, 'ws');
+};
+
+/**
  * Get API Base URL based on environment
  * @returns {string} API base URL
  */
@@ -50,6 +67,9 @@ const config = {
   
   // API Configuration
   apiBaseUrl: getApiBaseUrl(),
+  
+  // WebSocket Configuration
+  wsBaseUrl: getWsUrl(),
   
   // Demo Mode - Set to true to use mock data instead of real API
   demoMode: false, // Change to true to enable demo mode
@@ -82,6 +102,7 @@ if (config.enableLogging && typeof window !== 'undefined' && !window.__CONFIG_LO
   console.log('🔧 Application Configuration:');
   console.log('  - Environment:', config.mode);
   console.log('  - API Base URL:', config.apiBaseUrl || '(relative - using vite proxy)');
+  console.log('  - WebSocket URL:', config.wsBaseUrl || '(relative - using vite proxy)');
   console.log('  - Demo Mode:', config.demoMode);
   console.log('  - API Mode:', config.demoMode ? 'DEMO (Mock Data)' : 'REAL API');
   if (config.demoMode) {
