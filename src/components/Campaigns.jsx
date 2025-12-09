@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FaPlus, FaSearch, FaEdit, FaPause, FaPlay, FaChartLine, FaTrash, FaFilter, FaSpinner, FaUsers, FaEye, FaCalendar, FaUpload, FaFileAlt, FaDownload, FaTimes, FaBullseye } from 'react-icons/fa';
-import { callAPI, campaignAPI } from '../services/api';
+import { callAPI, campaignAPI, phoneAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import config from '../config';
 
@@ -20,7 +20,7 @@ const Campaigns = () => {
     agentId: '',
     phoneId: '',
     phoneNumbers: '',
-    concurrentCalls: 2,
+    concurrentCalls: 1,
     includeGreeting: false,
     useScript: false,
     scriptFile: null,
@@ -37,7 +37,7 @@ const Campaigns = () => {
     agentId: '',
     phoneId: '',
     phoneNumbers: '',
-    concurrentCalls: 2,
+    concurrentCalls: 1,
     scheduleDate: '',
     scheduleTime: '',
     includeGreeting: false,
@@ -46,6 +46,7 @@ const Campaigns = () => {
   });
   const [downloadingCallDetails, setDownloadingCallDetails] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
+  const [maxConcurrentLimit, setMaxConcurrentLimit] = useState(1); // Phone's max concurrent limit (fetched from backend)
 
   useEffect(() => {
     fetchCampaigns();
@@ -56,10 +57,48 @@ const Campaigns = () => {
       setFormData(prev => ({ ...prev, agentId: storedAgentId, phoneId: storedPhoneId }));
       setScheduleData(prev => ({ ...prev, agentId: storedAgentId, phoneId: storedPhoneId }));
     }
+
+    // Fetch phone's concurrent limit
+    if (storedPhoneId) {
+      fetchPhoneConcurrentLimit(storedPhoneId);
+    }
+
     // Auto-refresh every 5 seconds to show updated campaign status
     const interval = setInterval(() => fetchCampaigns(false), 5000);
     return () => clearInterval(interval);
   }, [filterStatus, searchQuery]);
+
+  const fetchPhoneConcurrentLimit = async (phoneId) => {
+    try {
+      // Fetch all phones for logged-in user (filtered by userId on backend)
+      const response = await phoneAPI.getMyPhones();
+
+      // Extract phones array from response
+      const phonesData = response.data?.phones || response.data || [];
+      const phones = Array.isArray(phonesData) ? phonesData : [];
+
+      // Find the user's phone (they should only have one phone assigned)
+      const userPhone = phones.find(p => p._id === phoneId) || phones[0];
+
+      if (userPhone) {
+        const limit = userPhone.concurrentLimit || 1; // Use phone's concurrent limit from database
+        setMaxConcurrentLimit(limit);
+
+        // Update form data with the phone's concurrent limit as default
+        setFormData(prev => ({ ...prev, concurrentCalls: limit }));
+        setScheduleData(prev => ({ ...prev, concurrentCalls: limit }));
+
+        console.log('Fetched concurrent limit from user phone:', limit);
+      } else {
+        console.warn('No phone found for logged-in user, using default limit of 1');
+        setMaxConcurrentLimit(1);
+      }
+    } catch (error) {
+      console.error('Error fetching phone concurrent limit:', error);
+      // Keep default of 1 if fetch fails
+      setMaxConcurrentLimit(1);
+    }
+  };
 
   const handleCsvImport = (file, isSchedule = false) => {
     const reader = new FileReader();
@@ -1166,13 +1205,16 @@ const Campaigns = () => {
                 <input
                   type="number"
                   min="1"
-                  max="2"
+                  max={maxConcurrentLimit}
                   value={formData.concurrentCalls}
                   onChange={(e) => {
-                    const value = parseInt(e.target.value) || 2;
-                    if (value > 2) {
-                      setConcurrentCallsError('Maximum 2 only');
-                      setFormData({ ...formData, concurrentCalls: 2 });
+                    const value = parseInt(e.target.value) || maxConcurrentLimit;
+                    if (value > maxConcurrentLimit) {
+                      setConcurrentCallsError(`Maximum ${maxConcurrentLimit} only (Phone limit)`);
+                      setFormData({ ...formData, concurrentCalls: maxConcurrentLimit });
+                    } else if (value < 1) {
+                      setConcurrentCallsError('Minimum 1 required');
+                      setFormData({ ...formData, concurrentCalls: 1 });
                     } else {
                       setConcurrentCallsError('');
                       setFormData({ ...formData, concurrentCalls: value });
@@ -1187,6 +1229,9 @@ const Campaigns = () => {
                     {concurrentCallsError}
                   </p>
                 )}
+                <p className="text-xs text-zinc-500 mt-2">
+                  Your phone supports up to {maxConcurrentLimit} concurrent calls
+                </p>
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1375,13 +1420,16 @@ const Campaigns = () => {
                 <input
                   type="number"
                   min="1"
-                  max="2"
+                  max={maxConcurrentLimit}
                   value={scheduleData.concurrentCalls}
                   onChange={(e) => {
-                    const value = parseInt(e.target.value) || 2;
-                    if (value > 2) {
-                      setScheduleConcurrentCallsError('Maximum 2 only');
-                      setScheduleData({ ...scheduleData, concurrentCalls: 2 });
+                    const value = parseInt(e.target.value) || maxConcurrentLimit;
+                    if (value > maxConcurrentLimit) {
+                      setScheduleConcurrentCallsError(`Maximum ${maxConcurrentLimit} only (Phone limit)`);
+                      setScheduleData({ ...scheduleData, concurrentCalls: maxConcurrentLimit });
+                    } else if (value < 1) {
+                      setScheduleConcurrentCallsError('Minimum 1 required');
+                      setScheduleData({ ...scheduleData, concurrentCalls: 1 });
                     } else {
                       setScheduleConcurrentCallsError('');
                       setScheduleData({ ...scheduleData, concurrentCalls: value });
@@ -1396,6 +1444,9 @@ const Campaigns = () => {
                     {scheduleConcurrentCallsError}
                   </p>
                 )}
+                <p className="text-xs text-zinc-500 mt-2">
+                  Your phone supports up to {maxConcurrentLimit} concurrent calls
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -535,6 +535,21 @@ export const agentAPI = {
   },
 };
 
+// Phone APIs
+export const phoneAPI = {
+  // Get phone by ID
+  get: async (phoneId) => {
+    const response = await api.get(`/api/v1/phones/${phoneId}`);
+    return response.data;
+  },
+
+  // Get phones for logged-in user
+  getMyPhones: async () => {
+    const response = await api.get('/api/v1/phones');
+    return response.data;
+  },
+};
+
 // Campaign APIs
 export const campaignAPI = {
   // Get campaign count for logged in user
