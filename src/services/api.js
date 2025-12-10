@@ -520,6 +520,21 @@ export const knowledgeBaseAPI = {
   },
 };
 
+// Phone APIs
+export const phoneAPI = {
+  // Get phone by ID
+  getPhone: async (phoneId) => {
+    const response = await api.get(`/api/v1/phones/${phoneId}`);
+    return response.data;
+  },
+
+  // Get all phones for logged-in user
+  getPhones: async () => {
+    const response = await api.get('/api/v1/phones');
+    return response.data;
+  },
+};
+
 // Agent APIs
 export const agentAPI = {
   // Get all agents

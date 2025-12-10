@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FaPlus, FaSearch, FaEdit, FaPause, FaPlay, FaChartLine, FaTrash, FaFilter, FaSpinner, FaUsers, FaEye, FaCalendar, FaUpload, FaFileAlt, FaDownload, FaTimes, FaBullseye } from 'react-icons/fa';
-import { callAPI, campaignAPI } from '../services/api';
+import { callAPI, campaignAPI, phoneAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import config from '../config';
 
@@ -48,15 +48,32 @@ const Campaigns = () => {
   });
   const [downloadingCallDetails, setDownloadingCallDetails] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
+  const [maxConcurrentLimit, setMaxConcurrentLimit] = useState(2); // Store phone's concurrent limit
 
   useEffect(() => {
     fetchCampaigns();
     // Get agentId and phoneId from localStorage (set during login via user's phone)
     const storedAgentId = localStorage.getItem('agentId');
     const storedPhoneId = localStorage.getItem('phoneId');
-    if (storedAgentId) {
-      setFormData(prev => ({ ...prev, agentId: storedAgentId, phoneId: storedPhoneId }));
-      setScheduleData(prev => ({ ...prev, agentId: storedAgentId, phoneId: storedPhoneId }));
+    if (storedAgentId && storedPhoneId) {
+      // Fetch phone details to get concurrent limit
+      phoneAPI.getPhone(storedPhoneId)
+        .then(response => {
+          console.log('Phone API response:', response);
+          const phone = response.data?.phone || response.data || response;
+          console.log('Phone object:', phone);
+          const concurrentLimit = phone.concurrentLimit || 2;
+          console.log('Concurrent limit:', concurrentLimit);
+          setMaxConcurrentLimit(concurrentLimit); // Store max limit for validation
+          setFormData(prev => ({ ...prev, agentId: storedAgentId, phoneId: storedPhoneId, concurrentCalls: concurrentLimit }));
+          setScheduleData(prev => ({ ...prev, agentId: storedAgentId, phoneId: storedPhoneId, concurrentCalls: concurrentLimit }));
+        })
+        .catch(error => {
+          console.error('Failed to fetch phone details:', error);
+          // Fallback to default values
+          setFormData(prev => ({ ...prev, agentId: storedAgentId, phoneId: storedPhoneId }));
+          setScheduleData(prev => ({ ...prev, agentId: storedAgentId, phoneId: storedPhoneId }));
+        });
     }
     // Auto-refresh every 5 seconds to show updated campaign status
     const interval = setInterval(() => fetchCampaigns(false), 5000);
@@ -1251,13 +1268,16 @@ const Campaigns = () => {
                 <input
                   type="number"
                   min="1"
-                  max="2"
+                  max={maxConcurrentLimit}
                   value={formData.concurrentCalls}
                   onChange={(e) => {
-                    const value = parseInt(e.target.value) || 2;
-                    if (value > 2) {
-                      setConcurrentCallsError('Maximum 2 only');
-                      setFormData({ ...formData, concurrentCalls: 2 });
+                    const value = parseInt(e.target.value) || 1;
+                    if (value > maxConcurrentLimit) {
+                      setConcurrentCallsError(`Maximum ${maxConcurrentLimit} only`);
+                      setFormData({ ...formData, concurrentCalls: maxConcurrentLimit });
+                    } else if (value < 1) {
+                      setConcurrentCallsError('Minimum 1 required');
+                      setFormData({ ...formData, concurrentCalls: 1 });
                     } else {
                       setConcurrentCallsError('');
                       setFormData({ ...formData, concurrentCalls: value });
@@ -1460,13 +1480,16 @@ const Campaigns = () => {
                 <input
                   type="number"
                   min="1"
-                  max="2"
+                  max={maxConcurrentLimit}
                   value={scheduleData.concurrentCalls}
                   onChange={(e) => {
-                    const value = parseInt(e.target.value) || 2;
-                    if (value > 2) {
-                      setScheduleConcurrentCallsError('Maximum 2 only');
-                      setScheduleData({ ...scheduleData, concurrentCalls: 2 });
+                    const value = parseInt(e.target.value) || 1;
+                    if (value > maxConcurrentLimit) {
+                      setScheduleConcurrentCallsError(`Maximum ${maxConcurrentLimit} only`);
+                      setScheduleData({ ...scheduleData, concurrentCalls: maxConcurrentLimit });
+                    } else if (value < 1) {
+                      setScheduleConcurrentCallsError('Minimum 1 required');
+                      setScheduleData({ ...scheduleData, concurrentCalls: 1 });
                     } else {
                       setScheduleConcurrentCallsError('');
                       setScheduleData({ ...scheduleData, concurrentCalls: value });
