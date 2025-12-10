@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaFilter, FaPhone, FaCalendar, FaCheckCircle, FaTimesCircle, FaClock, FaSpinner, FaPlus, FaVolumeUp, FaFileAlt, FaEye, FaSortUp, FaSortDown } from 'react-icons/fa';
+import { FaSearch, FaFilter, FaPhone, FaCalendar, FaCheckCircle, FaTimesCircle, FaClock, FaSpinner, FaPlus, FaVolumeUp, FaFileAlt, FaEye, FaSortUp, FaSortDown, FaFileExport } from 'react-icons/fa';
 import { callAPI, campaignAPI, agentAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -16,7 +16,10 @@ const Leads = () => {
     startDate: '',
     endDate: '',
     hasKeywords: false,
+    keyword: '', // Selected keyword filter
   });
+  const [allKeywords, setAllKeywords] = useState([]); // All unique keywords
+  const [exporting, setExporting] = useState(false);
   const [dateSortOrder, setDateSortOrder] = useState('desc'); // 'desc' = new to old, 'asc' = old to new
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -130,11 +133,27 @@ const Leads = () => {
 
       let leadsList = Array.from(leadsMap.values());
 
+      // Extract all unique keywords for the filter dropdown
+      const keywordsSet = new Set();
+      leadsList.forEach(lead => {
+        if (lead.detectedKeywords && Array.isArray(lead.detectedKeywords)) {
+          lead.detectedKeywords.forEach(keyword => keywordsSet.add(keyword));
+        }
+      });
+      setAllKeywords(Array.from(keywordsSet).sort());
+
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         leadsList = leadsList.filter(lead =>
           lead.phoneNumber.toLowerCase().includes(searchLower) ||
           (lead.email && lead.email.toLowerCase().includes(searchLower))
+        );
+      }
+
+      // Filter by selected keyword
+      if (filters.keyword) {
+        leadsList = leadsList.filter(lead =>
+          lead.detectedKeywords && lead.detectedKeywords.includes(filters.keyword)
         );
       }
 
@@ -296,6 +315,122 @@ const Leads = () => {
     }
   };
 
+  // Export leads to CSV
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+
+      // Get all leads with current filters applied
+      const params = {
+        page: 1,
+        limit: 100000, // Large limit to get all data
+      };
+
+      const response = await callAPI.getLeads(params);
+      const calls = response.data?.calls || [];
+
+      // Group calls by phone number
+      const leadsMap = new Map();
+      calls.forEach(call => {
+        const phone = call.direction === 'outbound' ? call.toPhone : call.fromPhone;
+        if (!phone) return;
+
+        const detectedKeywords = call.detectedKeywords || [];
+
+        if (!leadsMap.has(phone)) {
+          const lead = {
+            phoneNumber: phone,
+            lastCallDate: call.startedAt || call.createdAt,
+            callType: call.direction === 'inbound' ? 'Incoming' : call.direction === 'outbound' ? 'Outgoing' : 'Unknown',
+            detectedKeywords: detectedKeywords,
+            duration: call.durationSec || call.duration || call.callDuration || 0,
+            campaignName: call.campaignName || '',
+          };
+          leadsMap.set(phone, lead);
+        } else {
+          const lead = leadsMap.get(phone);
+          const existingKeywords = Array.isArray(lead.detectedKeywords) ? lead.detectedKeywords : [];
+          const newKeywords = Array.isArray(detectedKeywords) ? detectedKeywords : [];
+          lead.detectedKeywords = [...new Set([...existingKeywords, ...newKeywords])];
+
+          if (new Date(call.startedAt || call.createdAt) > new Date(lead.lastCallDate)) {
+            lead.lastCallDate = call.startedAt || call.createdAt;
+            lead.callType = call.direction === 'inbound' ? 'Incoming' : call.direction === 'outbound' ? 'Outgoing' : lead.callType || 'Unknown';
+            lead.duration = call.durationSec || call.duration || call.callDuration || lead.duration || 0;
+          }
+        }
+      });
+
+      let leadsToExport = Array.from(leadsMap.values());
+
+      // Apply search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        leadsToExport = leadsToExport.filter(lead =>
+          lead.phoneNumber.toLowerCase().includes(searchLower)
+        );
+      }
+
+      // Apply keyword filter
+      if (filters.keyword) {
+        leadsToExport = leadsToExport.filter(lead =>
+          lead.detectedKeywords && lead.detectedKeywords.includes(filters.keyword)
+        );
+      }
+
+      if (leadsToExport.length === 0) {
+        toast.warning('No leads to export');
+        setExporting(false);
+        return;
+      }
+
+      toast.success(`Exporting ${leadsToExport.length} lead(s)...`);
+
+      // Convert to CSV
+      const headers = [
+        'Phone Number',
+        'Call Type',
+        'Duration (sec)',
+        'Last Call Date',
+        'Keywords',
+        'Campaign Name'
+      ];
+
+      const csvRows = [headers.join(',')];
+
+      leadsToExport.forEach(lead => {
+        const row = [
+          `"${lead.phoneNumber}"`,
+          `"${lead.callType}"`,
+          Math.floor(lead.duration),
+          `"${lead.lastCallDate ? new Date(lead.lastCallDate).toLocaleString() : 'N/A'}"`,
+          `"${lead.detectedKeywords && lead.detectedKeywords.length > 0 ? lead.detectedKeywords.join('; ') : 'None'}"`,
+          `"${lead.campaignName || 'N/A'}"`
+        ];
+        csvRows.push(row.join(','));
+      });
+
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      const filterSuffix = filters.keyword ? `_${filters.keyword}` : '';
+      link.setAttribute('download', `leads${filterSuffix}_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success('Leads exported successfully!');
+    } catch (err) {
+      console.error('Error exporting leads:', err);
+      toast.error('Failed to export leads');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString('en-IN', {
@@ -359,11 +494,29 @@ const Leads = () => {
             Manage and track your leads
           </p>
         </div>
+        {/* Export Button */}
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {exporting ? (
+            <>
+              <FaSpinner className="animate-spin h-3 w-3" />
+              <span>Exporting...</span>
+            </>
+          ) : (
+            <>
+              <FaFileExport className="h-3 w-3" />
+              <span>Export</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* Filters */}
       <div className="glass-panel p-4 relative z-20">
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative">
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400" size={14} />
             <input
@@ -373,6 +526,20 @@ const Leads = () => {
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               className="w-full pl-10 pr-4 py-2 border border-zinc-200 rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 text-xs"
             />
+          </div>
+          <div>
+            <select
+              value={filters.keyword}
+              onChange={(e) => setFilters({ ...filters, keyword: e.target.value })}
+              className="w-full px-4 py-2 border border-zinc-200 rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 text-xs"
+            >
+              <option value="">All Keywords</option>
+              {allKeywords.map((keyword) => (
+                <option key={keyword} value={keyword}>
+                  {keyword}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
