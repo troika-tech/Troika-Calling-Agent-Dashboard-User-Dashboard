@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FaPhone, FaCalendar, FaClock, FaCheckCircle, FaSpinner, FaPlus, FaEdit, FaTrash, FaRedo, FaSearch, FaFilter, FaChevronDown, FaEye, FaDownload, FaFileExport } from 'react-icons/fa';
+import { FaPhone, FaCalendar, FaClock, FaCheckCircle, FaSpinner, FaPlus, FaEdit, FaTrash, FaRedo, FaSearch, FaFilter, FaChevronDown, FaEye, FaDownload } from 'react-icons/fa';
 import { callAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -16,10 +16,7 @@ const CallBacks = () => {
     phoneNumbers: [],
     startDate: '',
     endDate: '',
-    keyword: '', // Selected keyword filter
   });
-  const [allKeywords, setAllKeywords] = useState([]); // All unique keywords
-  const [exporting, setExporting] = useState(false);
   const [phoneFilterOpen, setPhoneFilterOpen] = useState(false);
   const [phoneSearch, setPhoneSearch] = useState('');
   const [allPhoneNumbers, setAllPhoneNumbers] = useState([]);
@@ -222,26 +219,10 @@ const CallBacks = () => {
         };
       });
 
-      // Extract all unique keywords for the filter dropdown
-      const keywordsSet = new Set();
-      callBacksList.forEach(cb => {
-        if (cb.detectedKeywords && Array.isArray(cb.detectedKeywords)) {
-          cb.detectedKeywords.forEach(keyword => keywordsSet.add(keyword));
-        }
-      });
-      setAllKeywords(Array.from(keywordsSet).sort());
-
       // Apply client-side filtering for phone numbers
       if (filters.phoneNumbers && filters.phoneNumbers.length > 0) {
-        callBacksList = callBacksList.filter(cb =>
+        callBacksList = callBacksList.filter(cb => 
           filters.phoneNumbers.includes(cb.phoneNumber)
-        );
-      }
-
-      // Apply keyword filter
-      if (filters.keyword) {
-        callBacksList = callBacksList.filter(cb =>
-          cb.detectedKeywords && cb.detectedKeywords.includes(filters.keyword)
         );
       }
 
@@ -357,138 +338,6 @@ const CallBacks = () => {
     }
   };
 
-  // Export follow-ups to CSV
-  const handleExport = async () => {
-    try {
-      setExporting(true);
-
-      const params = {
-        page: 1,
-        limit: 100000, // Large limit to get all data
-      };
-
-      const response = await callAPI.getFollowUps(params);
-      const calls = response.data?.calls || [];
-
-      // Map calls to follow-up format
-      let callBacksToExport = calls.map(call => {
-        const phone = call.direction === 'outbound' ? call.toPhone : call.fromPhone;
-        const detectedKeywords = call.detectedKeywords || [];
-        const callbackInfo = detectCallbackRequest(call.transcript);
-
-        return {
-          phoneNumber: phone,
-          originalCallDate: call.startedAt || call.createdAt,
-          scheduledTime: callbackInfo?.scheduledTime || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          campaignName: call.campaignName || '',
-          durationSec: call.durationSec || call.duration || call.callDuration || 0,
-          creditsConsumed: call.creditsConsumed || call.durationSec || 0,
-          detectedKeywords: detectedKeywords,
-          status: call.status || 'pending',
-        };
-      });
-
-      // Apply phone number filter
-      if (filters.phoneNumbers && filters.phoneNumbers.length > 0) {
-        callBacksToExport = callBacksToExport.filter(cb =>
-          filters.phoneNumbers.includes(cb.phoneNumber)
-        );
-      }
-
-      // Apply keyword filter
-      if (filters.keyword) {
-        callBacksToExport = callBacksToExport.filter(cb =>
-          cb.detectedKeywords && cb.detectedKeywords.includes(filters.keyword)
-        );
-      }
-
-      // Apply date filtering
-      if (filters.startDate) {
-        const startDate = new Date(filters.startDate);
-        callBacksToExport = callBacksToExport.filter(cb =>
-          new Date(cb.originalCallDate) >= startDate
-        );
-      }
-      if (filters.endDate) {
-        const endDate = new Date(filters.endDate);
-        endDate.setHours(23, 59, 59, 999);
-        callBacksToExport = callBacksToExport.filter(cb =>
-          new Date(cb.originalCallDate) <= endDate
-        );
-      }
-
-      // Apply status filter
-      if (filters.status) {
-        callBacksToExport = callBacksToExport.filter(cb => cb.status === filters.status);
-      }
-
-      // Remove duplicates by phone number (keep most recent)
-      const uniqueCallBacks = [];
-      const seenPhones = new Set();
-      callBacksToExport
-        .sort((a, b) => new Date(b.originalCallDate) - new Date(a.originalCallDate))
-        .forEach(cb => {
-          if (!seenPhones.has(cb.phoneNumber)) {
-            seenPhones.add(cb.phoneNumber);
-            uniqueCallBacks.push(cb);
-          }
-        });
-
-      if (uniqueCallBacks.length === 0) {
-        toast.warning('No follow-ups to export');
-        setExporting(false);
-        return;
-      }
-
-      toast.success(`Exporting ${uniqueCallBacks.length} follow-up(s)...`);
-
-      // Convert to CSV
-      const headers = [
-        'Phone Number',
-        'Duration (sec)',
-        'Credits',
-        'Keywords',
-        'Scheduled Time',
-        'Original Call Date',
-        'Campaign Name'
-      ];
-
-      const csvRows = [headers.join(',')];
-
-      uniqueCallBacks.forEach(cb => {
-        const row = [
-          `"${cb.phoneNumber}"`,
-          Math.floor(cb.durationSec),
-          cb.creditsConsumed || 0,
-          `"${cb.detectedKeywords && cb.detectedKeywords.length > 0 ? cb.detectedKeywords.join('; ') : 'None'}"`,
-          `"${cb.scheduledTime ? new Date(cb.scheduledTime).toLocaleString() : 'N/A'}"`,
-          `"${cb.originalCallDate ? new Date(cb.originalCallDate).toLocaleString() : 'N/A'}"`,
-          `"${cb.campaignName || 'N/A'}"`
-        ];
-        csvRows.push(row.join(','));
-      });
-
-      const csvContent = csvRows.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      const filterSuffix = filters.keyword ? `_${filters.keyword}` : '';
-      link.setAttribute('download', `follow_ups${filterSuffix}_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      toast.success('Follow-ups exported successfully!');
-    } catch (err) {
-      console.error('Error exporting follow-ups:', err);
-      toast.error('Failed to export follow-ups');
-    } finally {
-      setExporting(false);
-    }
-  };
-
   const formatDuration = (seconds) => {
     if (!seconds) return '0s';
     const mins = Math.floor(seconds / 60);
@@ -551,46 +400,11 @@ const CallBacks = () => {
             Schedule and manage follow ups
           </p>
         </div>
-        {/* Export Button */}
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {exporting ? (
-            <>
-              <FaSpinner className="animate-spin h-3 w-3" />
-              <span>Exporting...</span>
-            </>
-          ) : (
-            <>
-              <FaFileExport className="h-3 w-3" />
-              <span>Export</span>
-            </>
-          )}
-        </button>
       </div>
 
       {/* Filters */}
       <div className="glass-panel p-4 relative z-20">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-zinc-600 mb-2">
-              Keyword
-            </label>
-            <select
-              value={filters.keyword}
-              onChange={(e) => setFilters({ ...filters, keyword: e.target.value })}
-              className="w-full px-4 py-2 border border-zinc-200 rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 text-xs"
-            >
-              <option value="">All Keywords</option>
-              {allKeywords.map((keyword) => (
-                <option key={keyword} value={keyword}>
-                  {keyword}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div>
             <label className="block text-xs font-medium text-zinc-600 mb-2">
               Status
@@ -759,7 +573,6 @@ const CallBacks = () => {
                 phoneNumbers: [],
                 startDate: '',
                 endDate: '',
-                keyword: '',
               })}
               className="w-full px-4 py-2 border border-zinc-300 text-zinc-600 rounded-lg hover:bg-zinc-100 transition-colors text-xs font-medium"
             >

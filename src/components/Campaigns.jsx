@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FaPlus, FaSearch, FaEdit, FaPause, FaPlay, FaChartLine, FaTrash, FaFilter, FaSpinner, FaUsers, FaEye, FaCalendar, FaUpload, FaFileAlt, FaDownload, FaTimes, FaBullseye } from 'react-icons/fa';
-import { callAPI, campaignAPI, phoneAPI } from '../services/api';
+import { callAPI, campaignAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import config from '../config';
 
@@ -20,7 +20,8 @@ const Campaigns = () => {
     agentId: '',
     phoneId: '',
     phoneNumbers: '',
-    concurrentCalls: 1,
+    contacts: [], // Array of {phoneNumber, name} objects for CSV imports
+    concurrentCalls: 2,
     includeGreeting: false,
     useScript: false,
     scriptFile: null,
@@ -37,7 +38,8 @@ const Campaigns = () => {
     agentId: '',
     phoneId: '',
     phoneNumbers: '',
-    concurrentCalls: 1,
+    contacts: [], // Array of {phoneNumber, name} objects for CSV imports
+    concurrentCalls: 2,
     scheduleDate: '',
     scheduleTime: '',
     includeGreeting: false,
@@ -46,7 +48,6 @@ const Campaigns = () => {
   });
   const [downloadingCallDetails, setDownloadingCallDetails] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
-  const [maxConcurrentLimit, setMaxConcurrentLimit] = useState(1); // Phone's max concurrent limit (fetched from backend)
 
   useEffect(() => {
     fetchCampaigns();
@@ -57,48 +58,10 @@ const Campaigns = () => {
       setFormData(prev => ({ ...prev, agentId: storedAgentId, phoneId: storedPhoneId }));
       setScheduleData(prev => ({ ...prev, agentId: storedAgentId, phoneId: storedPhoneId }));
     }
-
-    // Fetch phone's concurrent limit
-    if (storedPhoneId) {
-      fetchPhoneConcurrentLimit(storedPhoneId);
-    }
-
     // Auto-refresh every 5 seconds to show updated campaign status
     const interval = setInterval(() => fetchCampaigns(false), 5000);
     return () => clearInterval(interval);
   }, [filterStatus, searchQuery]);
-
-  const fetchPhoneConcurrentLimit = async (phoneId) => {
-    try {
-      // Fetch all phones for logged-in user (filtered by userId on backend)
-      const response = await phoneAPI.getMyPhones();
-
-      // Extract phones array from response
-      const phonesData = response.data?.phones || response.data || [];
-      const phones = Array.isArray(phonesData) ? phonesData : [];
-
-      // Find the user's phone (they should only have one phone assigned)
-      const userPhone = phones.find(p => p._id === phoneId) || phones[0];
-
-      if (userPhone) {
-        const limit = userPhone.concurrentLimit || 1; // Use phone's concurrent limit from database
-        setMaxConcurrentLimit(limit);
-
-        // Update form data with the phone's concurrent limit as default
-        setFormData(prev => ({ ...prev, concurrentCalls: limit }));
-        setScheduleData(prev => ({ ...prev, concurrentCalls: limit }));
-
-        console.log('Fetched concurrent limit from user phone:', limit);
-      } else {
-        console.warn('No phone found for logged-in user, using default limit of 1');
-        setMaxConcurrentLimit(1);
-      }
-    } catch (error) {
-      console.error('Error fetching phone concurrent limit:', error);
-      // Keep default of 1 if fetch fails
-      setMaxConcurrentLimit(1);
-    }
-  };
 
   const handleCsvImport = (file, isSchedule = false) => {
     const reader = new FileReader();
@@ -107,10 +70,11 @@ const Campaigns = () => {
         const text = e.target.result;
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         
-        // Extract phone numbers from CSV (handle both single column and multiple columns)
-        const phoneNumbers = [];
+        // Extract phone numbers and names from CSV (handle both single column and multiple columns)
+        const contacts = [];
         let hasHeader = false;
         let phoneColumnIndex = 0;
+        let nameColumnIndex = 1;
         
         lines.forEach((line, index) => {
           // Check if first line is a header
@@ -118,10 +82,12 @@ const Campaigns = () => {
             const lowerLine = line.toLowerCase();
             if (lowerLine.includes('phone') || lowerLine.includes('number') || lowerLine.includes('name')) {
               hasHeader = true;
-              // Determine which column has phone numbers
+              // Determine which column has phone numbers and names
               const columns = line.split(',').map(col => col.trim().toLowerCase());
               const phoneIndex = columns.findIndex(col => col.includes('phone') || col.includes('number'));
-              phoneColumnIndex = phoneIndex >= 0 ? phoneIndex : (columns.length > 1 ? 1 : 0);
+              const nameIndex = columns.findIndex(col => col.includes('name') && !col.includes('phone') && !col.includes('number'));
+              phoneColumnIndex = phoneIndex >= 0 ? phoneIndex : 0;
+              nameColumnIndex = nameIndex >= 0 ? nameIndex : (columns.length > 1 ? 1 : -1);
               return;
             }
           }
@@ -132,38 +98,60 @@ const Campaigns = () => {
           // Split by comma
           const columns = line.split(',').map(col => col.trim());
           
-          // Determine phone number column
+          // Determine phone number and name columns
           let phoneNumber;
+          let name = '';
+          
           if (hasHeader) {
-            // Use the column index we found from header
+            // Use the column indices we found from header
             phoneNumber = columns[phoneColumnIndex] || columns[0];
+            if (nameColumnIndex >= 0 && columns[nameColumnIndex]) {
+              name = columns[nameColumnIndex].replace(/^["']|["']$/g, '');
+            }
           } else {
-            // If no header, first column is phone number (new format: phone_number, name)
+            // If no header, first column is phone number, second is name (format: number,name)
             phoneNumber = columns[0];
+            if (columns.length > 1) {
+              name = columns[1].replace(/^["']|["']$/g, '');
+            }
           }
           
-          // Remove quotes if present
+          // Remove quotes if present from phone number
           const cleanNumber = phoneNumber ? phoneNumber.replace(/^["']|["']$/g, '') : '';
           
           if (cleanNumber && /^[0-9+\-() ]+$/.test(cleanNumber.replace(/\s/g, ''))) {
-            phoneNumbers.push(cleanNumber);
+            contacts.push({
+              phoneNumber: cleanNumber,
+              name: name || ''
+            });
           }
         });
 
-        if (phoneNumbers.length === 0) {
+        if (contacts.length === 0) {
           toast.error('No valid phone numbers found in CSV file. Please check the format.');
           return;
         }
 
-        const phoneNumbersText = phoneNumbers.join('\n');
+        // Create phone numbers text for display (backward compatibility)
+        const phoneNumbersText = contacts.map(c => c.phoneNumber).join('\n');
+        const namesCount = contacts.filter(c => c.name).length;
 
         if (isSchedule) {
-          setScheduleData({ ...scheduleData, phoneNumbers: phoneNumbersText });
+          setScheduleData({ 
+            ...scheduleData, 
+            phoneNumbers: phoneNumbersText,
+            contacts: contacts
+          });
         } else {
-          setFormData({ ...formData, phoneNumbers: phoneNumbersText });
+          setFormData({ 
+            ...formData, 
+            phoneNumbers: phoneNumbersText,
+            contacts: contacts
+          });
         }
 
-        toast.success(`Successfully imported ${phoneNumbers.length} phone number(s) from CSV!`);
+        const namesMsg = namesCount > 0 ? ` (${namesCount} with names)` : '';
+        toast.success(`Successfully imported ${contacts.length} contact(s) from CSV!${namesMsg}`);
       } catch (error) {
         console.error('Error parsing CSV:', error);
         toast.error('Error reading CSV file. Please make sure the file format is correct.');
@@ -251,13 +239,40 @@ const Campaigns = () => {
         return;
       }
 
-      // Parse phone numbers from textarea (one per line or comma-separated)
-      const phoneNumbers = formData.phoneNumbers
-        .split(/[,\n]/)
-        .map(num => num.trim())
-        .filter(num => num.length > 0);
+      // Use contacts from CSV if available, otherwise parse phone numbers from textarea
+      let contacts = [];
+      if (formData.contacts && formData.contacts.length > 0) {
+        // Use contacts from CSV import
+        contacts = formData.contacts;
+      } else {
+        // Parse phone numbers from textarea (supports both formats: "number" or "number,name")
+        const lines = formData.phoneNumbers
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0);
+        
+        contacts = lines.map(line => {
+          // Check if line contains a comma (format: number,name)
+          if (line.includes(',')) {
+            const parts = line.split(',').map(part => part.trim());
+            const phoneNumber = parts[0].replace(/^["']|["']$/g, ''); // Remove quotes if present
+            const name = parts.slice(1).join(',').replace(/^["']|["']$/g, ''); // Join remaining parts in case name contains commas
+            return {
+              phoneNumber: phoneNumber,
+              name: name || ''
+            };
+          } else {
+            // Just phone number, no name
+            const phoneNumber = line.replace(/^["']|["']$/g, '');
+            return {
+              phoneNumber: phoneNumber,
+              name: ''
+            };
+          }
+        });
+      }
 
-      if (phoneNumbers.length === 0) {
+      if (contacts.length === 0) {
         toast.error('Please enter at least one phone number');
         setLoading(false);
         return;
@@ -272,9 +287,9 @@ const Campaigns = () => {
       );
 
       if (response.success && response.data?._id) {
-        // Step 2: Add contacts to campaign
+        // Step 2: Add contacts to campaign (with names if available)
         try {
-          const contactsResponse = await campaignAPI.addContacts(response.data._id, phoneNumbers);
+          const contactsResponse = await campaignAPI.addContacts(response.data._id, contacts);
           console.log('Add contacts response:', contactsResponse);
 
           if (contactsResponse.success && contactsResponse.data) {
@@ -294,10 +309,10 @@ const Campaigns = () => {
               // Update campaign status to waiting_for_approval
               await campaignAPI.update(response.data._id, { status: 'waiting_for_approval' });
 
-              toast.success(`Campaign "${formData.name}" created successfully with ${phoneNumbers.length} numbers! Script uploaded. Waiting for approval.`);
+              toast.success(`Campaign "${formData.name}" created successfully with ${contacts.length} contact(s)! Script uploaded. Waiting for approval.`);
               setShowCreateModal(false);
               setConcurrentCallsError('');
-              setFormData({ name: '', agentId: formData.agentId, phoneId: formData.phoneId, phoneNumbers: '', concurrentCalls: 2, includeGreeting: false, useScript: false, scriptFile: null });
+              setFormData({ name: '', agentId: formData.agentId, phoneId: formData.phoneId, phoneNumbers: '', contacts: [], concurrentCalls: 2, includeGreeting: false, useScript: false, scriptFile: null });
               if (scriptFileInputRef.current) {
                 scriptFileInputRef.current.value = '';
               }
@@ -309,7 +324,7 @@ const Campaigns = () => {
             }
           }
 
-          toast.success(`Campaign "${formData.name}" created successfully with ${phoneNumbers.length} numbers!`);
+          toast.success(`Campaign "${formData.name}" created successfully with ${contacts.length} contact(s)!`);
           setShowCreateModal(false);
           setConcurrentCallsError('');
           setFormData({ name: '', agentId: formData.agentId, phoneId: formData.phoneId, phoneNumbers: '', concurrentCalls: 2, includeGreeting: false, useScript: false, scriptFile: null });
@@ -361,13 +376,40 @@ const Campaigns = () => {
         return;
       }
 
-      // Parse phone numbers from textarea (one per line or comma-separated)
-      const phoneNumbers = scheduleData.phoneNumbers
-        .split(/[,\n]/)
-        .map(num => num.trim())
-        .filter(num => num.length > 0);
+      // Use contacts from CSV if available, otherwise parse phone numbers from textarea
+      let contacts = [];
+      if (scheduleData.contacts && scheduleData.contacts.length > 0) {
+        // Use contacts from CSV import
+        contacts = scheduleData.contacts;
+      } else {
+        // Parse phone numbers from textarea (supports both formats: "number" or "number,name")
+        const lines = scheduleData.phoneNumbers
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0);
+        
+        contacts = lines.map(line => {
+          // Check if line contains a comma (format: number,name)
+          if (line.includes(',')) {
+            const parts = line.split(',').map(part => part.trim());
+            const phoneNumber = parts[0].replace(/^["']|["']$/g, ''); // Remove quotes if present
+            const name = parts.slice(1).join(',').replace(/^["']|["']$/g, ''); // Join remaining parts in case name contains commas
+            return {
+              phoneNumber: phoneNumber,
+              name: name || ''
+            };
+          } else {
+            // Just phone number, no name
+            const phoneNumber = line.replace(/^["']|["']$/g, '');
+            return {
+              phoneNumber: phoneNumber,
+              name: ''
+            };
+          }
+        });
+      }
 
-      if (phoneNumbers.length === 0) {
+      if (contacts.length === 0) {
         toast.error('Please enter at least one phone number');
         setLoading(false);
         return;
@@ -392,9 +434,9 @@ const Campaigns = () => {
       );
 
       if (response.success && response.data?._id) {
-        // Step 2: Add contacts to campaign
+        // Step 2: Add contacts to campaign (with names if available)
         try {
-          await campaignAPI.addContacts(response.data._id, phoneNumbers);
+          await campaignAPI.addContacts(response.data._id, contacts);
 
           toast.success(`Campaign "${scheduleData.name}" scheduled successfully for ${scheduleDateTime.toLocaleString()}!`);
           setShowScheduleModal(false);
@@ -404,6 +446,7 @@ const Campaigns = () => {
             agentId: scheduleData.agentId,
             phoneId: scheduleData.phoneId,
             phoneNumbers: '',
+            contacts: [],
             concurrentCalls: 2,
             scheduleDate: '',
             scheduleTime: '',
@@ -1117,16 +1160,19 @@ const Campaigns = () => {
 
               <div>
                 <label className="block text-xs font-medium text-zinc-600 mb-2">
-                  Phone Numbers * (One per line or comma-separated)
+                  Phone Numbers * (One per line, with optional names)
                 </label>
                 <textarea
                   required
                   rows={8}
-                  placeholder="9821211755&#10;9876543210&#10;9123456789&#10;9988776655"
+                  placeholder="9821211755,John Doe&#10;9876543210,Jane Smith&#10;9123456789&#10;9988776655,Alice Williams"
                   value={formData.phoneNumbers}
-                  onChange={(e) => setFormData({ ...formData, phoneNumbers: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, phoneNumbers: e.target.value, contacts: [] })}
                   className="w-full px-4 py-2 border border-zinc-200 rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 font-mono text-xs"
                 />
+                <p className="mt-1 text-xs text-zinc-500">
+                  Format: <code className="bg-zinc-100 px-1 rounded">number,name</code> or just <code className="bg-zinc-100 px-1 rounded">number</code> (one per line)
+                </p>
                 <div className="flex items-center gap-2 mt-3">
                   <input
                     type="file"
@@ -1205,16 +1251,13 @@ const Campaigns = () => {
                 <input
                   type="number"
                   min="1"
-                  max={maxConcurrentLimit}
+                  max="2"
                   value={formData.concurrentCalls}
                   onChange={(e) => {
-                    const value = parseInt(e.target.value) || maxConcurrentLimit;
-                    if (value > maxConcurrentLimit) {
-                      setConcurrentCallsError(`Maximum ${maxConcurrentLimit} only (Phone limit)`);
-                      setFormData({ ...formData, concurrentCalls: maxConcurrentLimit });
-                    } else if (value < 1) {
-                      setConcurrentCallsError('Minimum 1 required');
-                      setFormData({ ...formData, concurrentCalls: 1 });
+                    const value = parseInt(e.target.value) || 2;
+                    if (value > 2) {
+                      setConcurrentCallsError('Maximum 2 only');
+                      setFormData({ ...formData, concurrentCalls: 2 });
                     } else {
                       setConcurrentCallsError('');
                       setFormData({ ...formData, concurrentCalls: value });
@@ -1229,9 +1272,6 @@ const Campaigns = () => {
                     {concurrentCallsError}
                   </p>
                 )}
-                <p className="text-xs text-zinc-500 mt-2">
-                  Your phone supports up to {maxConcurrentLimit} concurrent calls
-                </p>
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1329,18 +1369,18 @@ const Campaigns = () => {
 
               <div>
                 <label className="block text-xs font-medium text-zinc-600 mb-2">
-                  Phone Numbers * (One per line or comma-separated)
+                  Phone Numbers * (One per line, with optional names)
                 </label>
                 <textarea
                   required
                   value={scheduleData.phoneNumbers}
-                  onChange={(e) => setScheduleData({ ...scheduleData, phoneNumbers: e.target.value })}
-                  placeholder="9821211755&#10;9876543210&#10;9123456789&#10;9988776655"
+                  onChange={(e) => setScheduleData({ ...scheduleData, phoneNumbers: e.target.value, contacts: [] })}
+                  placeholder="9821211755,John Doe&#10;9876543210,Jane Smith&#10;9123456789&#10;9988776655,Alice Williams"
                   rows={6}
                   className="w-full px-4 py-2 border border-zinc-200 rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 font-mono text-xs"
                 />
-                <p className="text-xs text-zinc-500 mt-2">
-                  Enter phone numbers, one per line or separated by commas
+                <p className="mt-1 text-xs text-zinc-500">
+                  Format: <code className="bg-zinc-100 px-1 rounded">number,name</code> or just <code className="bg-zinc-100 px-1 rounded">number</code> (one per line)
                 </p>
                 <div className="flex items-center gap-2 mt-3">
                   <input
@@ -1420,16 +1460,13 @@ const Campaigns = () => {
                 <input
                   type="number"
                   min="1"
-                  max={maxConcurrentLimit}
+                  max="2"
                   value={scheduleData.concurrentCalls}
                   onChange={(e) => {
-                    const value = parseInt(e.target.value) || maxConcurrentLimit;
-                    if (value > maxConcurrentLimit) {
-                      setScheduleConcurrentCallsError(`Maximum ${maxConcurrentLimit} only (Phone limit)`);
-                      setScheduleData({ ...scheduleData, concurrentCalls: maxConcurrentLimit });
-                    } else if (value < 1) {
-                      setScheduleConcurrentCallsError('Minimum 1 required');
-                      setScheduleData({ ...scheduleData, concurrentCalls: 1 });
+                    const value = parseInt(e.target.value) || 2;
+                    if (value > 2) {
+                      setScheduleConcurrentCallsError('Maximum 2 only');
+                      setScheduleData({ ...scheduleData, concurrentCalls: 2 });
                     } else {
                       setScheduleConcurrentCallsError('');
                       setScheduleData({ ...scheduleData, concurrentCalls: value });
@@ -1444,9 +1481,6 @@ const Campaigns = () => {
                     {scheduleConcurrentCallsError}
                   </p>
                 )}
-                <p className="text-xs text-zinc-500 mt-2">
-                  Your phone supports up to {maxConcurrentLimit} concurrent calls
-                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

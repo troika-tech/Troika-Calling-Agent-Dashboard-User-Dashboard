@@ -535,21 +535,6 @@ export const agentAPI = {
   },
 };
 
-// Phone APIs
-export const phoneAPI = {
-  // Get phone by ID
-  get: async (phoneId) => {
-    const response = await api.get(`/api/v1/phones/${phoneId}`);
-    return response.data;
-  },
-
-  // Get phones for logged-in user
-  getMyPhones: async () => {
-    const response = await api.get('/api/v1/phones');
-    return response.data;
-  },
-};
-
 // Campaign APIs
 export const campaignAPI = {
   // Get campaign count for logged in user
@@ -570,13 +555,25 @@ export const campaignAPI = {
     return response.data;
   },
 
-  addContacts: async (campaignId, phoneNumbers) => {
-    // Convert phone numbers array to contacts format
-    const contacts = phoneNumbers.map(phoneNumber => ({
-      phoneNumber: phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`,
-      name: '',
-      metadata: {}
-    }));
+  addContacts: async (campaignId, contactsOrPhoneNumbers) => {
+    // Handle both array of phone numbers (backward compatibility) and array of contact objects
+    const contacts = contactsOrPhoneNumbers.map(item => {
+      if (typeof item === 'string') {
+        // Backward compatibility: item is a phone number string
+        return {
+          phoneNumber: item.startsWith('+') ? item : `+91${item}`,
+          name: '',
+          metadata: {}
+        };
+      } else {
+        // New format: item is a contact object with phoneNumber and name
+        return {
+          phoneNumber: item.phoneNumber.startsWith('+') ? item.phoneNumber : `+91${item.phoneNumber}`,
+          name: item.name || '',
+          metadata: item.metadata || {}
+        };
+      }
+    });
 
     const response = await api.post(`/api/v1/campaigns/${campaignId}/contacts`, {
       contacts
