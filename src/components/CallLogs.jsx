@@ -94,7 +94,7 @@ const CallLogs = () => {
     }
   };
 
-  // Export all data for current user
+  // Export filtered data based on current dropdown selection
   const handleExport = async () => {
     try {
       setExporting(true);
@@ -113,13 +113,13 @@ const CallLogs = () => {
         return;
       }
 
-      // Fetch ALL calls for this user (no pagination limit)
+      // Fetch calls with current filters applied
       const params = {
         limit: 100000, // Large limit to get all data
         userId,
       };
 
-      // Apply current filters to export
+      // Apply current filters to export - this ensures we only export filtered data
       if (filters.status) params.status = filters.status;
       if (filters.callType) {
         params.direction = filters.callType === 'outgoing' ? 'outbound' : 'inbound';
@@ -181,12 +181,22 @@ const CallLogs = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      link.setAttribute('download', `call_logs_${new Date().toISOString().split('T')[0]}.csv`);
+
+      // Create filename with filter suffix
+      let filterSuffix = '';
+      if (filters.callType) {
+        filterSuffix += `_${filters.callType}`;
+      }
+      if (filters.status) {
+        filterSuffix += `_${filters.status}`;
+      }
+      link.setAttribute('download', `call_logs${filterSuffix}_${new Date().toISOString().split('T')[0]}.csv`);
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       toast.success('Call logs exported successfully!');
     } catch (err) {
       console.error('Error exporting calls:', err);
@@ -270,7 +280,7 @@ const CallLogs = () => {
           ) : (
             <>
               <FaFileExport className="h-3 w-3" />
-              <span>Export All</span>
+              <span>Export</span>
             </>
           )}
         </button>
