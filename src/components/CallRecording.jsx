@@ -299,10 +299,49 @@ const CallRecording = () => {
 
   const handleDownload = async (recording) => {
     try {
-      // Open recording URL in new tab for download
-      window.open(recording.recordingUrl, '_blank');
+      // Use backend proxy to avoid CORS issues
+      const token = localStorage.getItem('authToken');
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const downloadUrl = `${apiBaseUrl}/api/v1/analytics/calls/${recording.id}/recording/download`;
+
+      // Fetch the audio file through backend proxy
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'audio/mpeg, audio/*, */*',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch recording: ${response.status}`);
+      }
+
+      // Get the blob data
+      const blob = await response.blob();
+
+      // Create a temporary URL for the blob
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      // Create a temporary link element and trigger download
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `call_recording_${recording.id || Date.now()}.mp3`;
+      link.style.display = 'none';
+
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup after download
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+
+      console.log('Recording downloaded successfully');
     } catch (err) {
-      console.error('Error downloading:', err);
+      console.error('Error downloading recording:', err);
+      alert('Failed to download recording. Please try again.');
     }
   };
 

@@ -238,6 +238,56 @@ const CallLogs = () => {
     return `${secs}s`;
   };
 
+  const handleDownloadRecording = async (recordingUrl, callId) => {
+    try {
+      toast.success('Downloading recording...');
+
+      // Use backend proxy to avoid CORS issues
+      const token = localStorage.getItem('authToken');
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const downloadUrl = `${apiBaseUrl}/api/v1/analytics/calls/${callId}/recording/download`;
+
+      // Fetch the audio file through backend proxy
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'audio/mpeg, audio/*, */*',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch recording: ${response.status}`);
+      }
+
+      // Get the blob data
+      const blob = await response.blob();
+
+      // Create a temporary URL for the blob
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      // Create a temporary link element and trigger download
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `call_recording_${callId || Date.now()}.mp3`;
+      link.style.display = 'none';
+
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup after download
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+
+      toast.success('Recording downloaded successfully');
+    } catch (err) {
+      console.error('Error downloading recording:', err);
+      toast.error('Failed to download recording. Please try again.');
+    }
+  };
+
 
   if (loading && calls.length === 0) {
     return (
@@ -644,14 +694,13 @@ const CallLogs = () => {
                       Your browser does not support the audio element.
                     </audio>
                     <div className="mt-3">
-                      <a
-                        href={selectedCall.recordingUrl}
-                        download
+                      <button
+                        onClick={() => handleDownloadRecording(selectedCall.recordingUrl, selectedCall._id || selectedCall.id)}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full text-xs font-medium transition-colors"
                       >
                         <FaDownload size={14} />
                         <span>Download Recording</span>
-                      </a>
+                      </button>
                     </div>
                   </div>
                 ) : (
