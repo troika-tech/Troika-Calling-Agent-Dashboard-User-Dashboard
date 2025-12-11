@@ -62,8 +62,9 @@ const Campaigns = () => {
           console.log('Phone API response:', response);
           const phone = response.data?.phone || response.data || response;
           console.log('Phone object:', phone);
-          const concurrentLimit = phone.concurrentLimit || 2;
-          console.log('Concurrent limit:', concurrentLimit);
+          // Use outboundConcurrentLimit for campaigns (campaigns are outbound calls)
+          const concurrentLimit = phone.outboundConcurrentLimit || phone.concurrentLimit || 2;
+          console.log('Outbound concurrent limit:', concurrentLimit);
           setMaxConcurrentLimit(concurrentLimit); // Store max limit for validation
           setFormData(prev => ({ ...prev, agentId: storedAgentId, phoneId: storedPhoneId, concurrentCalls: concurrentLimit }));
           setScheduleData(prev => ({ ...prev, agentId: storedAgentId, phoneId: storedPhoneId, concurrentCalls: concurrentLimit }));
