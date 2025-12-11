@@ -44,8 +44,6 @@ const Analytics = () => {
       const overviewData = overviewResponse?.data || overviewResponse || {};
       const chartsData = chartsResponse?.data || chartsResponse || {};
 
-      console.log('Analytics overview data:', overviewData);
-      console.log('Analytics charts data:', chartsData);
 
       // Set overview stats for KPI cards
       setStats({

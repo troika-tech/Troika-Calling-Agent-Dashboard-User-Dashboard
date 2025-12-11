@@ -58,25 +58,19 @@ const Login = () => {
         localStorage.setItem('user', JSON.stringify(userData));
 
         // Debug: Log user data to see structure
-        console.log('Login response user data:', userData);
 
         // Store agentId and phoneId from user's phone if available
         if (userData.phone?.agentId) {
-          console.log('Storing agentId:', userData.phone.agentId);
-          console.log('Storing phoneId:', userData.phone._id);
+          
           localStorage.setItem('agentId', userData.phone.agentId);
           localStorage.setItem('phoneId', userData.phone._id);
         } else {
-          console.warn('No agentId found in user.phone. User data:', userData);
           // Try to fetch user's phone/agent info separately if not in login response
           try {
             const userResponse = await authAPI.getCurrentUser();
-            console.log('Current user data:', userResponse);
             if (userResponse.data?.user?.phone?.agentId) {
               localStorage.setItem('agentId', userResponse.data.user.phone.agentId);
               localStorage.setItem('phoneId', userResponse.data.user.phone._id);
-              console.log('AgentId stored from /auth/me:', userResponse.data.user.phone.agentId);
-              console.log('PhoneId stored from /auth/me:', userResponse.data.user.phone._id);
             }
           } catch (fetchErr) {
             console.error('Failed to fetch current user:', fetchErr);

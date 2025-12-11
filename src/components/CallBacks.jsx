@@ -338,9 +338,7 @@ const CallBacks = () => {
     setUpdatingStatus(callBack._id);
 
     try {
-      console.log('Updating follow-up status:', { followUpId: callBack._id, newStatus });
       const response = await callAPI.updateFollowUpStatus(callBack._id, newStatus);
-      console.log('Follow-up status update response:', response);
 
       // Update local state
       setCallBacks(prev => prev.map(cb =>
