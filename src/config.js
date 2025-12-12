@@ -18,8 +18,8 @@ const DEV_BACKEND = 'live'; // Change to 'local' or 'live'
 /**
  * Live Backend URL
  */
-// const LIVE_BACKEND_URL = 'https://calling-api.0804.in';
-const LIVE_BACKEND_URL = 'http://localhost:5000';
+const LIVE_BACKEND_URL = 'https://calling-api.0804.in';
+// const LIVE_BACKEND_URL = 'http://localhost:5000';
 
 /**
  * Get WebSocket URL based on environment and API URL
