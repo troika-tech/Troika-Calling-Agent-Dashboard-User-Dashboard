@@ -487,6 +487,38 @@ const CallBacks = () => {
     }
   };
 
+  const handleDownloadRecording = async (recordingUrl, callId) => {
+    try {
+      toast.success('Downloading recording...');
+
+      // Use backend API to download recording (avoids CORS issues)
+      const blob = await callAPI.downloadRecording(callId);
+
+      // Create a temporary URL for the blob
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      // Create a temporary link element and trigger download
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `call_recording_${callId || Date.now()}.mp3`;
+      link.style.display = 'none';
+
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup after download
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+
+      toast.success('Recording downloaded successfully');
+    } catch (err) {
+      console.error('Error downloading recording:', err);
+      toast.error('Failed to download recording. Please try again.');
+    }
+  };
+
   const formatDuration = (seconds) => {
     if (!seconds) return '0s';
     const mins = Math.floor(seconds / 60);
@@ -1072,14 +1104,7 @@ const CallBacks = () => {
                       Your browser does not support the audio element.
                     </audio>
                     <div className="mt-3">
-                      <a
-                        href={selectedCallBack.recordingUrl}
-                        download
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full text-xs font-medium transition-colors"
-                      >
-                        <FaDownload size={14} />
-                        <span>Download Recording</span>
-                      </a>
+                    
                     </div>
                   </div>
                 </div>
