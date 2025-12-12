@@ -13,6 +13,7 @@ import {
   FaArrowDown
 } from 'react-icons/fa';
 import { callAPI } from '../services/api';
+import config from '../config';
 
 const CallRecording = () => {
   const [recordings, setRecordings] = useState([]);
@@ -301,7 +302,7 @@ const CallRecording = () => {
     try {
       // Use backend proxy to avoid CORS issues
       const token = localStorage.getItem('authToken');
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const apiBaseUrl = config.apiBaseUrl;
       const downloadUrl = `${apiBaseUrl}/api/v1/analytics/calls/${recording.id}/recording/download`;
 
       // Fetch the audio file through backend proxy

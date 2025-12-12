@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { FaSearch, FaFilter, FaPhone, FaCheckCircle, FaTimesCircle, FaClock, FaSpinner, FaEye, FaDownload, FaFileExport, FaTimes } from 'react-icons/fa';
 import { callAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import config from '../config';
 
 const CallLogs = () => {
   const toast = useToast();
@@ -244,7 +245,7 @@ const CallLogs = () => {
 
       // Use backend proxy to avoid CORS issues
       const token = localStorage.getItem('authToken');
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const apiBaseUrl = config.apiBaseUrl;
       const downloadUrl = `${apiBaseUrl}/api/v1/analytics/calls/${callId}/recording/download`;
 
       // Fetch the audio file through backend proxy
