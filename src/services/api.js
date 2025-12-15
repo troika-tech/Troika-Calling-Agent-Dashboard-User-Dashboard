@@ -470,6 +470,80 @@ export const callAPI = {
       throw error;
     }
   },
+
+  // Get call log details by ID (for scheduled calls with transcript and recording)
+  getCallById: async (callLogId) => {
+    if (DEMO_MODE) {
+      await mockDelay(200);
+      const hasTranscript = Math.random() > 0.3;
+      const hasRecording = Math.random() > 0.4;
+
+      return {
+        success: true,
+        data: {
+          id: callLogId,
+          sessionId: `CA${Date.now()}`,
+          phone: '+919876543210',
+          fromPhone: '+919876543210',
+          toPhone: '+911234567890',
+          campaignId: 'campaign-1',
+          campaignName: 'Demo Campaign',
+          direction: 'outbound',
+          callType: 'Outgoing',
+          status: 'completed',
+          outcome: 'Success',
+          durationSec: 145,
+          credits: 145,
+          transcript: hasTranscript ? [
+            {
+              speaker: 'assistant',
+              text: 'Hello! Thank you for calling. How can I assist you today?',
+              timestamp: new Date(Date.now() - 145000).toISOString(),
+            },
+            {
+              speaker: 'user',
+              text: 'Hi, I wanted to know about your services.',
+              timestamp: new Date(Date.now() - 140000).toISOString(),
+            },
+            {
+              speaker: 'assistant',
+              text: 'Of course! We offer a wide range of services. Let me provide you with more details...',
+              timestamp: new Date(Date.now() - 135000).toISOString(),
+            },
+            {
+              speaker: 'user',
+              text: 'That sounds great. Can you send me more information?',
+              timestamp: new Date(Date.now() - 130000).toISOString(),
+            },
+            {
+              speaker: 'assistant',
+              text: 'Absolutely! I will send you an email with all the details. Is there anything else I can help you with?',
+              timestamp: new Date(Date.now() - 125000).toISOString(),
+            },
+            {
+              speaker: 'user',
+              text: 'No, that is all. Thank you!',
+              timestamp: new Date(Date.now() - 120000).toISOString(),
+            },
+            {
+              speaker: 'assistant',
+              text: 'You are welcome! Have a great day!',
+              timestamp: new Date(Date.now() - 115000).toISOString(),
+            },
+          ] : [],
+          recordingUrl: hasRecording ? 'https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3' : null,
+          s3RecordingKey: hasRecording ? 'recordings/2025/12/demo-call.mp3' : null,
+          summary: 'User inquired about services. Provided details and agreed to send email with more information.',
+          createdAt: new Date(Date.now() - 150000).toISOString(),
+          startedAt: new Date(Date.now() - 145000).toISOString(),
+          endedAt: new Date(Date.now()).toISOString(),
+        }
+      };
+    }
+
+    const response = await api.get(`/api/v1/dashboard/call-logs/${callLogId}`);
+    return response.data;
+  },
 };
 
 // WebSocket/System Stats API
@@ -1146,6 +1220,161 @@ export const creditsAPI = {
     const response = await api.get('/api/v1/auth/me/credits/transactions', { params });
     return response.data;
   },
+};
+
+// Scheduling APIs
+export const schedulingAPI = {
+  // Schedule a new call
+  scheduleCall: async (params) => {
+    if (DEMO_MODE) {
+      await mockDelay(300);
+      return {
+        success: true,
+        data: {
+          scheduledCallId: `sched-${Date.now()}`,
+          scheduledFor: params.scheduledFor,
+          message: 'Call scheduled successfully'
+        }
+      };
+    }
+    const response = await api.post('/api/v1/scheduling/schedule', params);
+    return response.data;
+  },
+
+  // Get scheduled calls for a user
+  getScheduledCalls: async (userId, filters = {}) => {
+    if (DEMO_MODE) {
+      await mockDelay(250);
+      const mockScheduledCalls = Array.from({ length: 15 }).map((_, i) => {
+        const statuses = ['pending', 'processing', 'completed', 'cancelled', 'failed'];
+        const status = statuses[i % 5];
+        const scheduledTime = new Date(Date.now() + (i * 3600000)); // Staggered by 1 hour
+
+        return {
+          _id: `sched-${i + 1}`,
+          phoneNumber: `+9198765432${i % 10}`,
+          agentId: {
+            _id: `agent-${i % 3}`,
+            name: ['Sales Agent', 'Support Agent', 'Follow-up Agent'][i % 3]
+          },
+          userId,
+          scheduledFor: scheduledTime.toISOString(),
+          timezone: 'Asia/Kolkata',
+          status,
+          respectBusinessHours: i % 2 === 0,
+          businessHours: i % 2 === 0 ? {
+            start: '09:00',
+            end: '18:00',
+            timezone: 'Asia/Kolkata',
+            daysOfWeek: [1, 2, 3, 4, 5]
+          } : null,
+          recurring: i % 4 === 0 ? {
+            frequency: 'daily',
+            interval: 1,
+            currentOccurrence: 1
+          } : null,
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          isPending: status === 'pending',
+          isRecurring: i % 4 === 0,
+          canCancel: status === 'pending'
+        };
+      });
+
+      // Apply filters
+      let filtered = mockScheduledCalls;
+      if (filters.status) {
+        filtered = filtered.filter(call => call.status === filters.status);
+      }
+      if (filters.agentId) {
+        filtered = filtered.filter(call => call.agentId._id === filters.agentId);
+      }
+
+      return {
+        success: true,
+        data: {
+          scheduledCalls: filtered,
+          total: filtered.length
+        }
+      };
+    }
+
+    const queryParams = new URLSearchParams({ userId });
+    if (filters.status) queryParams.append('status', filters.status);
+    if (filters.startDate) queryParams.append('startDate', filters.startDate);
+    if (filters.endDate) queryParams.append('endDate', filters.endDate);
+    if (filters.agentId) queryParams.append('agentId', filters.agentId);
+
+    const response = await api.get(`/api/v1/scheduling/scheduled-calls?${queryParams.toString()}`);
+    return response.data;
+  },
+
+  // Cancel a scheduled call
+  cancelScheduledCall: async (scheduledCallId, userId) => {
+    if (DEMO_MODE) {
+      await mockDelay(200);
+      return {
+        success: true,
+        data: {
+          scheduledCallId,
+          status: 'cancelled',
+          message: 'Scheduled call cancelled successfully'
+        }
+      };
+    }
+    const response = await api.post(`/api/v1/scheduling/${scheduledCallId}/cancel`, { userId });
+    return response.data;
+  },
+
+  // Reschedule a call
+  rescheduleCall: async (scheduledCallId, userId, scheduledFor) => {
+    if (DEMO_MODE) {
+      await mockDelay(200);
+      return {
+        success: true,
+        data: {
+          scheduledCallId,
+          scheduledFor,
+          message: 'Call rescheduled successfully'
+        }
+      };
+    }
+    const response = await api.post(`/api/v1/scheduling/${scheduledCallId}/reschedule`, {
+      userId,
+      scheduledFor
+    });
+    return response.data;
+  },
+
+  // Get scheduling statistics
+  getStats: async () => {
+    if (DEMO_MODE) {
+      await mockDelay(150);
+      return {
+        success: true,
+        data: {
+          scheduler: {
+            totalScheduled: 45,
+            pending: 12,
+            processing: 2,
+            completed: 28,
+            cancelled: 2,
+            failed: 1
+          },
+          queue: {
+            waiting: 8,
+            active: 2,
+            completed: 28,
+            failed: 1,
+            delayed: 10,
+            paused: 0,
+            total: 49
+          }
+        }
+      };
+    }
+    const response = await api.get('/api/v1/scheduling/stats');
+    return response.data;
+  }
 };
 
 // Health check

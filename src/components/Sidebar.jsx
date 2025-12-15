@@ -2,21 +2,21 @@ import React, { useState, useEffect } from 'react';
 
 import { Link, useLocation } from 'react-router-dom';
 
-import { 
-  
-  FaHome, 
-  
-  FaBullseye, 
-  
-  FaChartLine, 
-  
+import {
+
+  FaHome,
+
+  FaBullseye,
+
+  FaChartLine,
+
   FaCog,
-  
+
   FaBars,
-  
+
   FaTimes,
-  
-  
+
+
   FaPhone,
   FaList,
   FaFileDownload,
@@ -25,7 +25,8 @@ import {
   FaMicrophone,
   FaUserFriends,
   FaChartBar,
-  FaRedo
+  FaRedo,
+  FaClock
 } from 'react-icons/fa';
 
 
@@ -65,6 +66,7 @@ const Sidebar = ({ isOpen = false, onClose }) => {
     { path: '/leads', icon: FaUserFriends, label: 'Leads' },
     { path: '/campaigns', icon: FaBullseye, label: 'Campaigns' },
     { path: '/call-backs', icon: FaRedo, label: 'Follow Up' },
+    { path: '/scheduled-calls', icon: FaClock, label: 'Scheduled Calls' },
     { path: '/call-logs', icon: FaList, label: 'Call Logs' },
     { path: '/call-recording', icon: FaMicrophone, label: 'Call Recording' },
     { path: '/call-summary', icon: FaChartBar, label: 'Chat Summary' },

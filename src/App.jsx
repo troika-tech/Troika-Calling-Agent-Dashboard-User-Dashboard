@@ -24,6 +24,7 @@ import CreditHistory from './components/CreditHistory';
 import DeliveryReports from './components/DeliveryReport';
 import CampaignReportDetail from './components/CampaignReportDetail';
 import Settings from './components/Settings';
+import ScheduledCalls from './components/ScheduledCalls';
 
 
 // Protected Route Component
@@ -106,6 +107,7 @@ function App() {
             <Route path="/leads" element={<Leads />} />
             <Route path="/call-summary" element={<CallSummary />} />
             <Route path="/call-backs" element={<CallBacks />} />
+            <Route path="/scheduled-calls" element={<ScheduledCalls />} />
             <Route path="/live-status" element={<LiveStatus />} />
             <Route path="/credit-history" element={<CreditHistory />} />
             <Route path="/delivery-reports" element={<DeliveryReports />} />

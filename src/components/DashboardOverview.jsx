@@ -19,11 +19,12 @@ import {
   FaTimesCircle,
   FaVolumeUp,
   FaVolumeMute,
-  FaWifi
+  FaWifi,
+  FaClock
 } from 'react-icons/fa';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { FiPhoneCall } from 'react-icons/fi';
-import { analyticsAPI, wsAPI, campaignAPI, creditsAPI, callAPI } from '../services/api';
+import { analyticsAPI, wsAPI, campaignAPI, creditsAPI, callAPI, schedulingAPI } from '../services/api';
 import { useCreditWebSocket } from '../hooks/useCreditWebSocket';
 
 const DashboardOverview = () => {
@@ -49,6 +50,8 @@ const DashboardOverview = () => {
   const [totalCampaignsCount, setTotalCampaignsCount] = useState(0);
   const [totalCallsCount, setTotalCallsCount] = useState(0);
   const [callChartData, setCallChartData] = useState(null);
+  const [scheduledCallsStats, setScheduledCallsStats] = useState(null);
+  const [upcomingScheduledCalls, setUpcomingScheduledCalls] = useState([]);
 
   // Audio player state
   const audioRef = useRef(null);
@@ -265,6 +268,20 @@ const DashboardOverview = () => {
           console.warn('Call chart data not available:', err);
           return null;
         }),
+        // Fetch scheduled calls stats
+        schedulingAPI.getStats().then(res => {
+          return res.data || null;
+        }).catch(err => {
+          console.warn('Scheduling stats not available:', err);
+          return null;
+        }),
+        // Fetch upcoming scheduled calls (next 5 pending)
+        schedulingAPI.getScheduledCalls(userId, { status: 'pending', limit: 5 }).then(res => {
+          return res.data?.scheduledCalls || [];
+        }).catch(err => {
+          console.warn('Upcoming scheduled calls not available:', err);
+          return [];
+        }),
       ]);
 
       // Set data from results
@@ -294,6 +311,12 @@ const DashboardOverview = () => {
       }
       if (results[7].status === 'fulfilled' && results[7].value) {
         setCallChartData(results[7].value);
+      }
+      if (results[8].status === 'fulfilled' && results[8].value) {
+        setScheduledCallsStats(results[8].value);
+      }
+      if (results[9].status === 'fulfilled' && results[9].value) {
+        setUpcomingScheduledCalls(results[9].value);
       }
 
     } catch (err) {
