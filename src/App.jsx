@@ -106,7 +106,7 @@ function App() {
             <Route path="/call-recording" element={<CallRecording />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/call-summary" element={<CallSummary />} />
-            <Route path="/call-backs" element={<CallBacks />} />
+            {/* <Route path="/call-backs" element={<CallBacks />} /> */}
             <Route path="/scheduled-calls" element={<ScheduledCalls />} />
             <Route path="/live-status" element={<LiveStatus />} />
             <Route path="/credit-history" element={<CreditHistory />} />

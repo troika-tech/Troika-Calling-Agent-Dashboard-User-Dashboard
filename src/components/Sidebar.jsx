@@ -65,7 +65,7 @@ const Sidebar = ({ isOpen = false, onClose }) => {
     { path: '/dashboard', icon: FaHome, label: 'Dashboard' },
     { path: '/leads', icon: FaUserFriends, label: 'Leads' },
     { path: '/campaigns', icon: FaBullseye, label: 'Campaigns' },
-    { path: '/call-backs', icon: FaRedo, label: 'Follow Up' },
+    // { path: '/call-backs', icon: FaRedo, label: 'Follow Up' },
     { path: '/scheduled-calls', icon: FaClock, label: 'Scheduled Calls' },
     { path: '/call-logs', icon: FaList, label: 'Call Logs' },
     { path: '/call-recording', icon: FaMicrophone, label: 'Call Recording' },
