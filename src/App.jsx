@@ -25,6 +25,7 @@ import DeliveryReports from './components/DeliveryReport';
 import CampaignReportDetail from './components/CampaignReportDetail';
 import Settings from './components/Settings';
 import ScheduledCalls from './components/ScheduledCalls';
+import AppointmentBooking from './components/AppointmentBooking';
 
 
 // Protected Route Component
@@ -113,6 +114,7 @@ function App() {
             <Route path="/delivery-reports" element={<DeliveryReports />} />
             <Route path="/campaign-report/:campaignId" element={<CampaignReportDetail />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/appointment-booking" element={<AppointmentBooking />} />
 
           </Routes>
             </main>

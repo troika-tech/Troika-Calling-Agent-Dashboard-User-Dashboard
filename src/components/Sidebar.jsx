@@ -26,7 +26,8 @@ import {
   FaUserFriends,
   FaChartBar,
   FaRedo,
-  FaClock
+  FaClock,
+  FaCalendarCheck
 } from 'react-icons/fa';
 
 
@@ -67,6 +68,7 @@ const Sidebar = ({ isOpen = false, onClose }) => {
     { path: '/campaigns', icon: FaBullseye, label: 'Campaigns' },
     { path: '/call-backs', icon: FaRedo, label: 'Follow Up' },
     { path: '/scheduled-calls', icon: FaClock, label: 'Scheduled Calls' },
+    { path: '/appointment-booking', icon: FaCalendarCheck, label: 'Appointment Booking' },
     { path: '/call-logs', icon: FaList, label: 'Call Logs' },
     { path: '/call-recording', icon: FaMicrophone, label: 'Call Recording' },
     { path: '/call-summary', icon: FaChartBar, label: 'Chat Summary' },
