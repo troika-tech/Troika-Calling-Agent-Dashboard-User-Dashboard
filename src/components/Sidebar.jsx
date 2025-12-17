@@ -32,10 +32,11 @@ import {
 
 
 
-const Sidebar = ({ isOpen = false, onClose }) => {
+const Sidebar = ({ isOpen = false, onClose, permissions: propPermissions, permissionsLoaded = false }) => {
 
   const [collapsed, setCollapsed] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [localPermissions, setLocalPermissions] = useState(null);
 
   const location = useLocation();
 
@@ -60,23 +61,74 @@ const Sidebar = ({ isOpen = false, onClose }) => {
     }
   }, [isOpen, isMobile]);
 
+  // Load permissions from localStorage as fallback (if prop not provided)
+  useEffect(() => {
+    if (!propPermissions) {
+      try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          console.log('[Sidebar] Loaded permissions from localStorage:', user.permissions);
+          setLocalPermissions(user.permissions || null);
+        }
+      } catch (e) {
+        console.error('[Sidebar] Error parsing user permissions:', e);
+        setLocalPermissions(null);
+      }
+    }
+  }, [propPermissions]);
 
+  // Listen for storage changes (in case user data is updated externally)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'user') {
+        try {
+          const userStr = e.newValue;
+          if (userStr) {
+            const user = JSON.parse(userStr);
+            console.log('[Sidebar] Storage event - permissions updated:', user.permissions);
+            setLocalPermissions(user.permissions || null);
+          }
+        } catch (err) {
+          console.error('[Sidebar] Error parsing storage event:', err);
+        }
+      }
+    };
 
-  const menuItems = [
-    { path: '/dashboard', icon: FaHome, label: 'Dashboard' },
-    { path: '/leads', icon: FaUserFriends, label: 'Leads' },
-    { path: '/campaigns', icon: FaBullseye, label: 'Campaigns' },
-    { path: '/call-backs', icon: FaRedo, label: 'Follow Up' },
-    { path: '/scheduled-calls', icon: FaClock, label: 'Scheduled Calls' },
-    { path: '/appointment-booking', icon: FaCalendarCheck, label: 'Appointment Booking' },
-    { path: '/call-logs', icon: FaList, label: 'Call Logs' },
-    { path: '/call-recording', icon: FaMicrophone, label: 'Call Recording' },
-    { path: '/call-summary', icon: FaChartBar, label: 'Chat Summary' },
-    { path: '/live-status', icon: FaSignal, label: 'Live Status' },
-    { path: '/analytics', icon: FaChartLine, label: 'Analytics' },
-    { path: '/delivery-reports', icon: FaFileAlt, label: 'Delivery Reports' },
-    { path: '/credit-history', icon: FaFileDownload, label: 'Credit History' },
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Use prop permissions (fresh from API) if available, otherwise use localStorage
+  const permissions = propPermissions || localPermissions;
+  
+  console.log('[Sidebar] Active permissions:', permissions, 'Loaded:', permissionsLoaded);
+
+  // All menu items with their permission keys
+  const allMenuItems = [
+    { path: '/dashboard', icon: FaHome, label: 'Dashboard', permissionKey: 'dashboard' },
+    { path: '/leads', icon: FaUserFriends, label: 'Leads', permissionKey: 'leads' },
+    { path: '/campaigns', icon: FaBullseye, label: 'Campaigns', permissionKey: 'campaigns' },
+    { path: '/scheduled-calls', icon: FaClock, label: 'Scheduled Calls', permissionKey: 'scheduledCalls' },
+    { path: '/appointment-booking', icon: FaCalendarCheck, label: 'Appointment Booking', permissionKey: 'appointmentBooking' },
+    { path: '/call-logs', icon: FaList, label: 'Call Logs', permissionKey: 'callLogs' },
+    { path: '/call-recording', icon: FaMicrophone, label: 'Call Recording', permissionKey: 'callRecording' },
+    { path: '/call-summary', icon: FaChartBar, label: 'Chat Summary', permissionKey: 'chatSummary' },
+    { path: '/live-status', icon: FaSignal, label: 'Live Status', permissionKey: 'liveStatus' },
+    { path: '/analytics', icon: FaChartLine, label: 'Analytics', permissionKey: 'analytics' },
+    { path: '/delivery-reports', icon: FaFileAlt, label: 'Delivery Reports', permissionKey: 'deliveryReports' },
+    { path: '/credit-history', icon: FaFileDownload, label: 'Credit History', permissionKey: 'creditHistory' },
   ];
+
+  // Filter menu items based on permissions
+  // If permissions not loaded yet, show empty array (prevents flash of unauthorized content)
+  // If permissions loaded but null/undefined, show all items (default behavior for users without restrictions)
+  // If permissions exist, filter based on permission values
+  const menuItems = !permissionsLoaded 
+    ? [] // Don't show anything until permissions are loaded
+    : permissions
+      ? allMenuItems.filter(item => permissions[item.permissionKey] !== false)
+      : allMenuItems; // Show all if no permissions set (backward compatible)
 
 
 

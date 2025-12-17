@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -26,7 +26,12 @@ import CampaignReportDetail from './components/CampaignReportDetail';
 import Settings from './components/Settings';
 import ScheduledCalls from './components/ScheduledCalls';
 import AppointmentBooking from './components/AppointmentBooking';
+import { authAPI } from './services/api';
 
+// User Context for sharing user data (including permissions) across components
+const UserContext = createContext(null);
+
+export const useUser = () => useContext(UserContext);
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -37,8 +42,53 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
+  // Fetch fresh user data (including permissions) on app load
+  useEffect(() => {
+    const fetchFreshUserData = async () => {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setPermissionsLoaded(true);
+        return;
+      }
 
+      try {
+        console.log('[App] Fetching fresh user data...');
+        const response = await authAPI.getCurrentUser();
+        
+        if (response.success && response.data?.user) {
+          const freshUser = response.data.user;
+          console.log('[App] Fresh user data received:', freshUser);
+          console.log('[App] Permissions:', freshUser.permissions);
+          
+          // Update localStorage with fresh data
+          localStorage.setItem('user', JSON.stringify(freshUser));
+          setUser(freshUser);
+          
+          // Dispatch storage event to notify Sidebar
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'user',
+            newValue: JSON.stringify(freshUser)
+          }));
+        }
+      } catch (error) {
+        console.error('[App] Failed to fetch fresh user data:', error);
+        // If fetch fails, use cached data from localStorage
+        try {
+          const cachedUser = JSON.parse(localStorage.getItem('user') || 'null');
+          setUser(cachedUser);
+        } catch (e) {
+          console.error('[App] Failed to parse cached user:', e);
+        }
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+
+    fetchFreshUserData();
+  }, []);
 
   return (
 
@@ -58,6 +108,27 @@ function App() {
           path="/*"
           element={
             <ProtectedRoute>
+      <UserContext.Provider value={{ user, permissionsLoaded }}>
+      
+      {/* Loading Screen - Show until permissions are loaded */}
+      {!permissionsLoaded ? (
+        <div className="h-screen bg-gradient-to-b from-zinc-50 via-slate-50 to-slate-100 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <img 
+              src="/images/logo.png" 
+              alt="Logo" 
+              className="h-12 w-auto animate-pulse"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+            <p className="text-sm text-zinc-500">Loading...</p>
+          </div>
+        </div>
+      ) : (
       <div className="h-screen bg-gradient-to-b from-zinc-50 via-slate-50 to-slate-100 text-zinc-900 flex flex-col overflow-hidden">
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Mobile Header - Only visible on mobile */}
@@ -71,7 +142,7 @@ function App() {
             <UserMenu />
           </header>
 
-          <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+          <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} permissions={user?.permissions} permissionsLoaded={permissionsLoaded} />
 
           {/* Main */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -121,7 +192,8 @@ function App() {
           </div>
         </div>
       </div>
-
+      )}
+      </UserContext.Provider>
             </ProtectedRoute>
           }
         />

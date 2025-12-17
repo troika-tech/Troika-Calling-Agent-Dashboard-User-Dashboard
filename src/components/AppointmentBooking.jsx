@@ -340,6 +340,7 @@ const AppointmentBooking = () => {
                   <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-700">Phone</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-700">Schedule Date</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-700">Schedule Time</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-700">Reason</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-700">Status</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-700">Created</th>
                 </tr>
@@ -351,6 +352,7 @@ const AppointmentBooking = () => {
                     <td className="py-3 px-4 text-sm text-zinc-600">{appointment.customerPhone}</td>
                     <td className="py-3 px-4 text-sm text-zinc-600">{formatDate(appointment.appointmentDate)}</td>
                     <td className="py-3 px-4 text-sm text-zinc-600">{formatTime(appointment.appointmentTime)}</td>
+                    <td className="py-3 px-4 text-sm text-zinc-600">{appointment.reason || '-'}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         {/* Toggle Switch */}
