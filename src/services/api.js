@@ -1377,6 +1377,59 @@ export const schedulingAPI = {
   }
 };
 
+// Appointment Booking APIs
+export const appointmentAPI = {
+  // Get appointment booking settings
+  getSettings: async () => {
+    const response = await api.get('/api/v1/appointments/settings');
+    return response.data;
+  },
+
+  // Update appointment booking settings
+  updateSettings: async (settings) => {
+    const response = await api.put('/api/v1/appointments/settings', settings);
+    return response.data;
+  },
+
+  // List appointments
+  list: async (params = {}) => {
+    const response = await api.get('/api/v1/appointments', { params });
+    return response.data;
+  },
+
+  // Get appointment by ID
+  get: async (appointmentId) => {
+    const response = await api.get(`/api/v1/appointments/${appointmentId}`);
+    return response.data;
+  },
+
+  // Create appointment
+  create: async (appointmentData) => {
+    const response = await api.post('/api/v1/appointments', appointmentData);
+    return response.data;
+  },
+
+  // Update appointment
+  update: async (appointmentId, updates) => {
+    const response = await api.put(`/api/v1/appointments/${appointmentId}`, updates);
+    return response.data;
+  },
+
+  // Delete appointment
+  delete: async (appointmentId) => {
+    const response = await api.delete(`/api/v1/appointments/${appointmentId}`);
+    return response.data;
+  },
+
+  // Get available slots for a date
+  getAvailableSlots: async (date) => {
+    const response = await api.get('/api/v1/appointments/available-slots', {
+      params: { date }
+    });
+    return response.data;
+  }
+};
+
 // Health check
 export const healthCheck = async () => {
   const response = await api.get('/health');
