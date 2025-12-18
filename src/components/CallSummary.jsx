@@ -37,6 +37,7 @@ const CallSummary = () => {
   const [translating, setTranslating] = useState(false);
   const [showTranslated, setShowTranslated] = useState(false);
   const [supportedLanguages] = useState([
+    // Indian Languages
     { code: 'en', name: 'English' },
     { code: 'hi', name: 'Hindi' },
     { code: 'mr', name: 'Marathi' },
@@ -48,12 +49,35 @@ const CallSummary = () => {
     { code: 'bn', name: 'Bengali' },
     { code: 'pa', name: 'Punjabi' },
     { code: 'ur', name: 'Urdu' },
+    { code: 'as', name: 'Assamese' },
+    { code: 'or', name: 'Odia' },
+    { code: 'ne', name: 'Nepali' },
+    { code: 'gom', name: 'Konkani' },
+    // Asian Languages
+    { code: 'zh', name: 'Chinese' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' },
+    { code: 'th', name: 'Thai' },
+    { code: 'vi', name: 'Vietnamese' },
+    { code: 'id', name: 'Indonesian' },
+    { code: 'ms', name: 'Malay' },
+    { code: 'fil', name: 'Filipino' },
+    // European Languages
     { code: 'es', name: 'Spanish' },
     { code: 'fr', name: 'French' },
     { code: 'de', name: 'German' },
+    { code: 'pt', name: 'Portuguese' },
+    { code: 'it', name: 'Italian' },
+    { code: 'nl', name: 'Dutch' },
+    { code: 'ru', name: 'Russian' },
+    { code: 'pl', name: 'Polish' },
+    { code: 'tr', name: 'Turkish' },
+    { code: 'el', name: 'Greek' },
+    { code: 'sv', name: 'Swedish' },
+    // Middle Eastern Languages
     { code: 'ar', name: 'Arabic' },
-    { code: 'zh', name: 'Chinese' },
-    { code: 'ja', name: 'Japanese' },
+    { code: 'fa', name: 'Persian' },
+    { code: 'he', name: 'Hebrew' },
   ]);
 
   useEffect(() => {
