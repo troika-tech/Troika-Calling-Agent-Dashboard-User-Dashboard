@@ -38,10 +38,21 @@ api.interceptors.response.use(
 
     // If 401 Unauthorized, redirect to login
     if (error.response?.status === 401) {
+      // Backend returns { success: false, error: { code, message } }
+      const errorCode = error.response?.data?.error?.code;
+      const errorMessage = error.response?.data?.error?.message;
+
       // Clear stored auth data
       localStorage.removeItem('authToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
+      localStorage.removeItem('lastActivityTime');
+
+      // Check if session was invalidated by another login
+      if (errorCode === 'SESSION_INVALID') {
+        // Store the message to show on login page
+        localStorage.setItem('sessionInvalidMessage', errorMessage || 'Your session has been terminated. Another device logged in with this account.');
+      }
 
       // Redirect to login page if not already there
       if (window.location.pathname !== '/login') {
@@ -1428,6 +1439,33 @@ export const appointmentAPI = {
     });
     return response.data;
   }
+};
+
+// Translation APIs
+export const translateAPI = {
+  // Get supported languages
+  getLanguages: async () => {
+    const response = await api.get('/api/v1/translate/languages');
+    return response.data;
+  },
+
+  // Translate transcript
+  translateTranscript: async (transcript, targetLanguage) => {
+    const response = await api.post('/api/v1/translate/transcript', {
+      transcript,
+      targetLanguage,
+    });
+    return response.data;
+  },
+
+  // Translate text array
+  translateTexts: async (texts, targetLanguage) => {
+    const response = await api.post('/api/v1/translate/text', {
+      texts,
+      targetLanguage,
+    });
+    return response.data;
+  },
 };
 
 // Health check

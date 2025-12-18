@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaEye, FaEyeSlash, FaLock, FaEnvelope } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaLock, FaEnvelope, FaExclamationTriangle } from 'react-icons/fa';
 import { authAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -14,6 +14,27 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sessionInvalidMessage, setSessionInvalidMessage] = useState('');
+
+  const [inactivityMessage, setInactivityMessage] = useState('');
+
+  // Check for session invalid message or inactivity logout message on mount
+  useEffect(() => {
+    const sessionMessage = localStorage.getItem('sessionInvalidMessage');
+    if (sessionMessage) {
+      setSessionInvalidMessage(sessionMessage);
+      localStorage.removeItem('sessionInvalidMessage');
+    }
+
+    const inactivityMsg = localStorage.getItem('inactivityLogoutMessage');
+    if (inactivityMsg) {
+      setInactivityMessage(inactivityMsg);
+      localStorage.removeItem('inactivityLogoutMessage');
+    }
+
+    // Clear last activity time on login page
+    localStorage.removeItem('lastActivityTime');
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -186,6 +207,32 @@ const Login = () => {
                   <h2 className="text-3xl font-bold text-zinc-900">Welcome to Troika Tech</h2>
                   <p className="text-sm text-zinc-600">Sign in to continue to your dashboard</p>
                 </div>
+
+                {/* Session Invalid Warning */}
+                {sessionInvalidMessage && (
+                  <div className="p-4 bg-amber-50/90 backdrop-blur-sm border border-amber-300/50 rounded-xl shadow-sm mb-4">
+                    <div className="flex items-start gap-3">
+                      <FaExclamationTriangle className="text-amber-500 mt-0.5 flex-shrink-0" size={18} />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-700">Session Ended</p>
+                        <p className="text-sm text-amber-600 mt-1">{sessionInvalidMessage}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Inactivity Logout Warning */}
+                {inactivityMessage && !sessionInvalidMessage && (
+                  <div className="p-4 bg-orange-50/90 backdrop-blur-sm border border-orange-300/50 rounded-xl shadow-sm mb-4">
+                    <div className="flex items-start gap-3">
+                      <FaExclamationTriangle className="text-orange-500 mt-0.5 flex-shrink-0" size={18} />
+                      <div>
+                        <p className="text-sm font-semibold text-orange-700">Session Expired</p>
+                        <p className="text-sm text-orange-600 mt-1">{inactivityMessage}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                   {error && (

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { FaSpinner, FaChartBar, FaEye, FaFileDownload, FaTimesCircle, FaPhone, FaClock, FaBullseye, FaSortUp, FaSortDown } from 'react-icons/fa';
-import { callAPI, campaignAPI, analyticsAPI } from '../services/api';
+import React, { useState, useEffect, useRef } from 'react';
+import { FaSpinner, FaChartBar, FaEye, FaFileDownload, FaTimesCircle, FaPhone, FaClock, FaBullseye, FaSortUp, FaSortDown, FaLanguage, FaUndo, FaPlay, FaPause, FaDownload, FaMicrophone } from 'react-icons/fa';
+import { callAPI, campaignAPI, analyticsAPI, translateAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import config from '../config';
 
 const CallSummary = () => {
   const toast = useToast();
@@ -23,6 +24,37 @@ const CallSummary = () => {
     startDate: '',
     endDate: '',
   });
+  
+  // Audio playback state
+  const audioRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [downloadingRecording, setDownloadingRecording] = useState(false);
+  
+  // Translation state
+  const [selectedLanguage, setSelectedLanguage] = useState('');
+  const [translatedTranscript, setTranslatedTranscript] = useState(null);
+  const [translatedSummary, setTranslatedSummary] = useState(null);
+  const [translating, setTranslating] = useState(false);
+  const [showTranslated, setShowTranslated] = useState(false);
+  const [supportedLanguages] = useState([
+    { code: 'en', name: 'English' },
+    { code: 'hi', name: 'Hindi' },
+    { code: 'mr', name: 'Marathi' },
+    { code: 'gu', name: 'Gujarati' },
+    { code: 'ta', name: 'Tamil' },
+    { code: 'te', name: 'Telugu' },
+    { code: 'kn', name: 'Kannada' },
+    { code: 'ml', name: 'Malayalam' },
+    { code: 'bn', name: 'Bengali' },
+    { code: 'pa', name: 'Punjabi' },
+    { code: 'ur', name: 'Urdu' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'fr', name: 'French' },
+    { code: 'de', name: 'German' },
+    { code: 'ar', name: 'Arabic' },
+    { code: 'zh', name: 'Chinese' },
+    { code: 'ja', name: 'Japanese' },
+  ]);
 
   useEffect(() => {
     fetchCalls();
@@ -83,6 +115,8 @@ const CallSummary = () => {
         summary: call.summary || null,
         campaignName: call.campaignName || '',
         duration: call.duration || 0,
+        recordingUrl: call.recordingUrl || null,
+        s3RecordingKey: call.s3RecordingKey || null,
       }));
 
       // Sort by date
@@ -161,6 +195,150 @@ const CallSummary = () => {
   const handleViewTranscript = (call) => {
     setSelectedCall(call);
     setShowTranscriptModal(true);
+    // Reset translation state when opening new transcript
+    setTranslatedTranscript(null);
+    setTranslatedSummary(null);
+    setShowTranslated(false);
+    setSelectedLanguage('');
+    // Reset audio state
+    setIsPlaying(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+  };
+
+  // Handle audio playback
+  const handlePlayPause = () => {
+    if (!selectedCall?.recordingUrl) return;
+
+    if (isPlaying) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      setIsPlaying(false);
+    } else {
+      if (!audioRef.current) {
+        audioRef.current = new Audio(selectedCall.recordingUrl);
+        audioRef.current.onended = () => setIsPlaying(false);
+        audioRef.current.onerror = () => {
+          toast.error('Failed to play recording');
+          setIsPlaying(false);
+        };
+      }
+      audioRef.current.play().catch(err => {
+        console.error('Error playing audio:', err);
+        toast.error('Failed to play recording');
+        setIsPlaying(false);
+      });
+      setIsPlaying(true);
+    }
+  };
+
+  // Handle recording download
+  const handleDownloadRecording = async () => {
+    if (!selectedCall?._id) return;
+
+    try {
+      setDownloadingRecording(true);
+      toast.success('Downloading recording...');
+
+      const token = localStorage.getItem('authToken');
+      const apiBaseUrl = config.apiBaseUrl;
+      const downloadUrl = `${apiBaseUrl}/api/v1/analytics/calls/${selectedCall._id}/recording/download`;
+
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'audio/mpeg, audio/*, */*',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch recording: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `call_recording_${selectedCall._id}.mp3`;
+      link.style.display = 'none';
+
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+
+      toast.success('Recording downloaded successfully');
+    } catch (err) {
+      console.error('Error downloading recording:', err);
+      toast.error('Failed to download recording. Please try again.');
+    } finally {
+      setDownloadingRecording(false);
+    }
+  };
+
+  const handleTranslate = async () => {
+    if (!selectedLanguage) {
+      toast.warning('Please select a language to translate');
+      return;
+    }
+
+    if (!selectedCall?.transcript && !selectedCall?.summary) {
+      toast.warning('No content available to translate');
+      return;
+    }
+
+    try {
+      setTranslating(true);
+      
+      // Translate transcript if available
+      if (selectedCall?.transcript && selectedCall.transcript.length > 0) {
+        const transcriptResponse = await translateAPI.translateTranscript(
+          selectedCall.transcript,
+          selectedLanguage
+        );
+
+        if (transcriptResponse.success && transcriptResponse.data?.transcript) {
+          setTranslatedTranscript(transcriptResponse.data.transcript);
+        }
+      }
+
+      // Translate summary if available
+      if (selectedCall?.summary) {
+        const summaryResponse = await translateAPI.translateTexts(
+          [selectedCall.summary],
+          selectedLanguage
+        );
+
+        if (summaryResponse.success && summaryResponse.data?.translations?.[0]) {
+          // API returns {original, translated} object, extract translated text
+          const translationResult = summaryResponse.data.translations[0];
+          const translatedText = typeof translationResult === 'string' 
+            ? translationResult 
+            : translationResult.translated || translationResult;
+          setTranslatedSummary(translatedText);
+        }
+      }
+
+      setShowTranslated(true);
+      toast.success(`Translated to ${supportedLanguages.find(l => l.code === selectedLanguage)?.name || selectedLanguage}`);
+    } catch (err) {
+      console.error('Translation error:', err);
+      toast.error(err.response?.data?.message || 'Failed to translate');
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const handleShowOriginal = () => {
+    setShowTranslated(false);
   };
 
   const handleExportTranscript = (call) => {
@@ -536,6 +714,12 @@ const CallSummary = () => {
                 onClick={() => {
                   setShowTranscriptModal(false);
                   setSelectedCall(null);
+                  // Clean up audio
+                  setIsPlaying(false);
+                  if (audioRef.current) {
+                    audioRef.current.pause();
+                    audioRef.current = null;
+                  }
                 }}
                 className="p-2 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
               >
@@ -563,22 +747,140 @@ const CallSummary = () => {
               </div>
             </div>
 
+            {/* Translation Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-2">
+                <FaLanguage className="text-blue-500" size={16} />
+                <span className="text-sm font-medium text-zinc-700">Translate Content</span>
+                {showTranslated && (
+                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                    {supportedLanguages.find(l => l.code === selectedLanguage)?.name}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={selectedLanguage}
+                  onChange={(e) => setSelectedLanguage(e.target.value)}
+                  className="px-3 py-1.5 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-700 focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400 min-w-[130px]"
+                >
+                  <option value="">Select Language</option>
+                  {supportedLanguages.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.name}
+                    </option>
+                  ))}
+                </select>
+                
+                <button
+                  onClick={handleTranslate}
+                  disabled={!selectedLanguage || translating}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg transition-colors text-xs font-medium disabled:cursor-not-allowed"
+                >
+                  {translating ? (
+                    <>
+                      <FaSpinner className="animate-spin" size={11} />
+                      <span>Translating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaLanguage size={12} />
+                      <span>Translate</span>
+                    </>
+                  )}
+                </button>
+                
+                {showTranslated && (
+                  <button
+                    onClick={handleShowOriginal}
+                    className="inline-flex items-center gap-1.5 px-4 py-1.5 border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors text-xs font-medium"
+                  >
+                    <FaUndo size={10} />
+                    <span>Original</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Chat Summary */}
             {selectedCall.summary && (
               <div className="bg-emerald-50/50 p-4 rounded-lg border border-emerald-200">
-                <h3 className="text-sm font-semibold text-zinc-900 mb-2">Chat Summary</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-zinc-900">Chat Summary</h3>
+                  {showTranslated && translatedSummary && (
+                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                      {supportedLanguages.find(l => l.code === selectedLanguage)?.name || 'Translated'}
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-zinc-700 whitespace-pre-wrap leading-relaxed">
-                  {selectedCall.summary}
+                  {showTranslated && translatedSummary 
+                    ? (typeof translatedSummary === 'string' ? translatedSummary : translatedSummary.translated || selectedCall.summary)
+                    : selectedCall.summary}
                 </p>
               </div>
             )}
 
+            {/* Recording Section */}
+            <div className="bg-zinc-50/50 p-4 rounded-lg border border-zinc-200">
+              <h3 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2">
+                <FaMicrophone className="text-emerald-500" size={14} />
+                Recording
+              </h3>
+              {selectedCall.recordingUrl ? (
+                <div className="space-y-3">
+                  {/* Audio Player */}
+                  <audio 
+                    controls 
+                    className="w-full"
+                    src={selectedCall.recordingUrl}
+                  >
+                    Your browser does not support the audio element.
+                  </audio>
+                  
+                  {/* Download Button */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleDownloadRecording}
+                      disabled={downloadingRecording}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white rounded-full text-xs font-medium transition-colors disabled:cursor-not-allowed"
+                    >
+                      {downloadingRecording ? (
+                        <>
+                          <FaSpinner className="animate-spin" size={12} />
+                          <span>Downloading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FaDownload size={12} />
+                          <span>Download Recording</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <FaMicrophone className="mx-auto h-8 w-8 text-zinc-300 mb-2" />
+                  <p className="text-sm text-zinc-500">No recording available for this call</p>
+                </div>
+              )}
+            </div>
+
             {/* Transcript */}
             {selectedCall.transcript && selectedCall.transcript.length > 0 && (
               <div className="bg-zinc-50/50 p-4 rounded-lg border border-zinc-200">
-                <h3 className="text-sm font-semibold text-zinc-900 mb-3">Transcript</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-zinc-900">Transcript</h3>
+                  {showTranslated && translatedTranscript && (
+                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                      {supportedLanguages.find(l => l.code === selectedLanguage)?.name || 'Translated'}
+                    </span>
+                  )}
+                </div>
+                
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {selectedCall.transcript.map((entry, idx) => {
+                  {(showTranslated && translatedTranscript ? translatedTranscript : selectedCall.transcript).map((entry, idx) => {
                     const isUser = entry.speaker === 'user' || entry.speaker === 'customer';
                     const text = entry.text || entry.content || '';
                     

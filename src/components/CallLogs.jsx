@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FaSearch, FaFilter, FaPhone, FaCheckCircle, FaTimesCircle, FaClock, FaSpinner, FaEye, FaDownload, FaFileExport, FaTimes } from 'react-icons/fa';
-import { callAPI } from '../services/api';
+import { FaSearch, FaFilter, FaPhone, FaCheckCircle, FaTimesCircle, FaClock, FaSpinner, FaEye, FaDownload, FaFileExport, FaTimes, FaLanguage, FaUndo } from 'react-icons/fa';
+import { callAPI, translateAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import config from '../config';
 
@@ -21,6 +21,26 @@ const CallLogs = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedCall, setSelectedCall] = useState(null);
   const [exporting, setExporting] = useState(false);
+  
+  // Translation state
+  const [selectedLanguage, setSelectedLanguage] = useState('');
+  const [translatedTranscript, setTranslatedTranscript] = useState(null);
+  const [translating, setTranslating] = useState(false);
+  const [showTranslated, setShowTranslated] = useState(false);
+  
+  const supportedLanguages = [
+    { code: 'en', name: 'English' },
+    { code: 'hi', name: 'Hindi' },
+    { code: 'mr', name: 'Marathi' },
+    { code: 'gu', name: 'Gujarati' },
+    { code: 'ta', name: 'Tamil' },
+    { code: 'te', name: 'Telugu' },
+    { code: 'kn', name: 'Kannada' },
+    { code: 'ml', name: 'Malayalam' },
+    { code: 'bn', name: 'Bengali' },
+    { code: 'pa', name: 'Punjabi' },
+    { code: 'ur', name: 'Urdu' },
+  ];
 
   // Get user from localStorage
   const getUser = () => {
@@ -287,6 +307,52 @@ const CallLogs = () => {
       console.error('Error downloading recording:', err);
       toast.error('Failed to download recording. Please try again.');
     }
+  };
+
+  // Handle translation
+  const handleTranslate = async () => {
+    if (!selectedLanguage) {
+      toast.warning('Please select a language to translate');
+      return;
+    }
+
+    if (!selectedCall?.transcript || selectedCall.transcript.length === 0) {
+      toast.error('No transcript available to translate');
+      return;
+    }
+
+    try {
+      setTranslating(true);
+      
+      // Translate transcript
+      const transcriptResponse = await translateAPI.translateTranscript(
+        selectedCall.transcript,
+        selectedLanguage
+      );
+      
+      if (transcriptResponse.success && transcriptResponse.data?.transcript) {
+        setTranslatedTranscript(transcriptResponse.data.transcript);
+        setShowTranslated(true);
+        toast.success(`Translated to ${supportedLanguages.find(l => l.code === selectedLanguage)?.name || selectedLanguage}`);
+      }
+    } catch (err) {
+      console.error('Translation error:', err);
+      toast.error(err.response?.data?.message || 'Failed to translate. Please try again.');
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  // Handle show original
+  const handleShowOriginal = () => {
+    setShowTranslated(false);
+  };
+
+  // Reset translation state when modal closes or call changes
+  const resetTranslationState = () => {
+    setTranslatedTranscript(null);
+    setShowTranslated(false);
+    setSelectedLanguage('hi');
   };
 
 
@@ -649,6 +715,7 @@ const CallLogs = () => {
           onClick={() => {
             setShowDetailsModal(false);
             setSelectedCall(null);
+            resetTranslationState();
           }}
         >
           <div
@@ -674,6 +741,7 @@ const CallLogs = () => {
                   onClick={() => {
                     setShowDetailsModal(false);
                     setSelectedCall(null);
+                    resetTranslationState();
                   }}
                   className="text-zinc-400 hover:text-zinc-600 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 transition-colors"
                 >
@@ -711,46 +779,113 @@ const CallLogs = () => {
                 )}
               </div>
 
+              {/* Translation Controls */}
+              {selectedCall.transcript && Array.isArray(selectedCall.transcript) && selectedCall.transcript.length > 0 && (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2">
+                    <FaLanguage className="text-blue-500" size={16} />
+                    <span className="text-sm font-medium text-zinc-700">Translate Content</span>
+                    {showTranslated && (
+                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                        {supportedLanguages.find(l => l.code === selectedLanguage)?.name}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={selectedLanguage}
+                      onChange={(e) => setSelectedLanguage(e.target.value)}
+                      disabled={translating}
+                      className="px-3 py-1.5 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-700 focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400 min-w-[130px]"
+                    >
+                      <option value="">Select Language</option>
+                      {supportedLanguages.map((lang) => (
+                        <option key={lang.code} value={lang.code}>
+                          {lang.name}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      onClick={handleTranslate}
+                      disabled={!selectedLanguage || translating}
+                      className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg transition-colors text-xs font-medium disabled:cursor-not-allowed"
+                    >
+                      {translating ? (
+                        <>
+                          <FaSpinner className="animate-spin" size={11} />
+                          <span>Translating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FaLanguage size={12} />
+                          <span>Translate</span>
+                        </>
+                      )}
+                    </button>
+                    
+                    {showTranslated && (
+                      <button
+                        onClick={handleShowOriginal}
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors text-xs font-medium"
+                      >
+                        <FaUndo size={10} />
+                        <span>Original</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Transcript Section */}
-              <div>
-                <h3 className="text-lg font-semibold text-zinc-900 mb-4">
-                  Transcript
-                </h3>
+              <div className="bg-zinc-50/50 p-4 rounded-lg border border-zinc-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-zinc-900">Transcript</h3>
+                  {showTranslated && translatedTranscript && (
+                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                      {supportedLanguages.find(l => l.code === selectedLanguage)?.name || 'Translated'}
+                    </span>
+                  )}
+                </div>
                 {selectedCall.transcript && Array.isArray(selectedCall.transcript) && selectedCall.transcript.length > 0 ? (
-                  <div className="space-y-4">
-                    {selectedCall.transcript.map((entry, index) => {
-                      // Map speaker field to role (speaker can be 'user', 'assistant', 'agent')
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {(showTranslated && translatedTranscript ? translatedTranscript : selectedCall.transcript).map((entry, index) => {
+                      // Map speaker field to role (speaker can be 'user', 'assistant', 'agent', 'customer')
                       const speaker = entry.speaker || entry.role || 'assistant';
-                      const isUser = speaker === 'user';
-                      const displayName = isUser ? 'User' : 'Assistant';
+                      const isUser = speaker === 'user' || speaker === 'customer';
+                      const text = entry.text || entry.content || '';
 
                       return (
                         <div
                           key={index}
-                          className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                          className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}
                         >
                           <div
-                            className={`max-w-[80%] p-4 rounded-lg border ${
+                            className={`max-w-[75%] p-3 rounded-lg ${
                               isUser
-                                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                                : 'bg-zinc-50 border-zinc-200 text-zinc-800'
+                                ? 'bg-blue-50 border border-blue-200 rounded-tl-none'
+                                : 'bg-emerald-50 border border-emerald-200 rounded-tr-none'
                             }`}
                           >
-                            <p className="font-semibold mb-1 text-sm">{displayName}:</p>
-                            <p className="text-sm whitespace-pre-wrap">{entry.text || entry.content}</p>
-                            {entry.timestamp && (
-                              <p className="text-xs text-zinc-500 mt-2 text-right">
-                                {new Date(entry.timestamp).toLocaleTimeString()}
-                              </p>
-                            )}
+                            <div className="flex items-center justify-between mb-1 gap-2">
+                              <span className="text-xs font-medium text-zinc-600">
+                                {isUser ? 'Customer' : 'Agent'}
+                              </span>
+                              {entry.timestamp && (
+                                <span className="text-xs text-zinc-500">
+                                  {new Date(entry.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-zinc-900">{text}</p>
                           </div>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="bg-zinc-50 rounded-lg p-4 text-center border border-zinc-200">
-                    <p className="text-zinc-500">No transcript available</p>
+                  <div className="text-center py-4">
+                    <p className="text-sm text-zinc-500">No transcript available</p>
                   </div>
                 )}
               </div>
@@ -761,6 +896,7 @@ const CallLogs = () => {
                 onClick={() => {
                   setShowDetailsModal(false);
                   setSelectedCall(null);
+                  resetTranslationState();
                 }}
                 className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full text-xs font-medium transition-colors"
               >

@@ -2,11 +2,12 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-import { FaBars, FaPhone } from 'react-icons/fa';
+import { FaBars, FaHeadset } from 'react-icons/fa';
 
 import Sidebar from './components/Sidebar';
 
 import UserMenu from './components/UserMenu';
+import SupportDropdown from './components/SupportDropdown';
 import Login from './components/Login';
 import DashboardOverview from './components/DashboardOverview';
 
@@ -26,6 +27,7 @@ import CampaignReportDetail from './components/CampaignReportDetail';
 import Settings from './components/Settings';
 import ScheduledCalls from './components/ScheduledCalls';
 import AppointmentBooking from './components/AppointmentBooking';
+import InactivityTracker from './components/InactivityTracker';
 import { authAPI } from './services/api';
 
 // User Context for sharing user data (including permissions) across components
@@ -44,6 +46,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const [supportModalOpen, setSupportModalOpen] = useState(false);
 
   // Fetch fresh user data (including permissions) on app load
   useEffect(() => {
@@ -108,6 +111,7 @@ function App() {
           path="/*"
           element={
             <ProtectedRoute>
+      <InactivityTracker>
       <UserContext.Provider value={{ user, permissionsLoaded }}>
       
       {/* Loading Screen - Show until permissions are loaded */}
@@ -139,7 +143,25 @@ function App() {
             >
               <FaBars size={20} className="text-zinc-700" />
             </button>
-            <UserMenu />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700">
+                <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Live
+              </div>
+              <div className="relative">
+                <button
+                  onClick={() => setSupportModalOpen(!supportModalOpen)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-100 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors shadow-sm"
+                  title="Support"
+                >
+                  <FaHeadset size={16} />
+                </button>
+                {supportModalOpen && (
+                  <SupportDropdown onClose={() => setSupportModalOpen(false)} />
+                )}
+              </div>
+              <UserMenu />
+            </div>
           </header>
 
           <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} permissions={user?.permissions} permissionsLoaded={permissionsLoaded} />
@@ -155,6 +177,19 @@ function App() {
                 <div className="hidden sm:flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs text-emerald-700">
                   <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   Live
+                </div>
+                <div className="relative">
+<button
+                  onClick={() => setSupportModalOpen(!supportModalOpen)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-emerald-100 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors shadow-sm"
+                  title="Support"
+                >
+                  <FaHeadset size={18} />
+                </button>
+                  {/* Support dropdown positioned relative to button */}
+                  {supportModalOpen && (
+                    <SupportDropdown onClose={() => setSupportModalOpen(false)} />
+                  )}
                 </div>
                 <div className="hidden lg:block">
                   <UserMenu />
@@ -194,6 +229,7 @@ function App() {
       </div>
       )}
       </UserContext.Provider>
+      </InactivityTracker>
             </ProtectedRoute>
           }
         />
