@@ -14,6 +14,10 @@ import {
 } from 'react-icons/fa';
 import { callAPI } from '../services/api';
 import config from '../config';
+import { formatDuration, formatTotalDuration, getUserId, getAuthToken, downloadBlob } from '../utils';
+import StatusBadge from './ui/StatusBadge';
+import { CallTypeBadge } from './ui/StatusBadge';
+import Pagination from './ui/Pagination';
 
 const CallRecording = () => {
   const [recordings, setRecordings] = useState([]);
@@ -26,19 +30,7 @@ const CallRecording = () => {
   const [stats, setStats] = useState({ totalRecordings: 0, outgoing: 0, incoming: 0, totalDuration: 0 });
   const audioRef = useRef(null);
 
-  // Get user from localStorage
-  const getUser = () => {
-    try {
-      return JSON.parse(localStorage.getItem('user') || '{}');
-    } catch {
-      return {};
-    }
-  };
-
-  const getUserId = () => {
-    const user = getUser();
-    return user._id || user.id;
-  };
+  // getUserId is now imported from utils
 
   // Fetch recordings from API with server-side filtering (hasRecording=true)
   const fetchRecordings = async () => {
@@ -234,24 +226,10 @@ const CallRecording = () => {
     fetchStats();
   }, []); // Only fetch stats once on mount, not on pagination change
 
-  // Format duration for display (MM:SS)
-  const formatDurationDisplay = (seconds) => {
-    if (!seconds) return '00:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
+  // Format duration for display (MM:SS) - use shared utility
+  const formatDurationDisplay = (seconds) => formatDuration(seconds, 'padded');
 
-  // Format total duration for stats
-  const formatTotalDuration = (seconds) => {
-    if (!seconds) return '0m';
-    if (seconds >= 3600) {
-      const hours = Math.floor(seconds / 3600);
-      const mins = Math.floor((seconds % 3600) / 60);
-      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-    }
-    return `${Math.floor(seconds / 60)}m`;
-  };
+  // formatTotalDuration is now imported from utils
 
   // Filter and sort recordings for display (client-side search only, pagination is server-side)
   const displayRecordings = recordings.filter(recording => {
@@ -300,12 +278,9 @@ const CallRecording = () => {
 
   const handleDownload = async (recording) => {
     try {
-      // Use backend proxy to avoid CORS issues
-      const token = localStorage.getItem('authToken');
-      const apiBaseUrl = config.apiBaseUrl;
-      const downloadUrl = `${apiBaseUrl}/api/v1/analytics/calls/${recording.id}/recording/download`;
+      const token = getAuthToken();
+      const downloadUrl = `${config.apiBaseUrl}/api/v1/analytics/calls/${recording.id}/recording/download`;
 
-      // Fetch the audio file through backend proxy
       const response = await fetch(downloadUrl, {
         method: 'GET',
         headers: {
@@ -318,27 +293,8 @@ const CallRecording = () => {
         throw new Error(`Failed to fetch recording: ${response.status}`);
       }
 
-      // Get the blob data
       const blob = await response.blob();
-
-      // Create a temporary URL for the blob
-      const blobUrl = window.URL.createObjectURL(blob);
-
-      // Create a temporary link element and trigger download
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `call_recording_${recording.id || Date.now()}.mp3`;
-      link.style.display = 'none';
-
-      document.body.appendChild(link);
-      link.click();
-
-      // Cleanup after download
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-      }, 100);
-
+      downloadBlob(blob, `call_recording_${recording.id || Date.now()}.mp3`);
       console.log('Recording downloaded successfully');
     } catch (err) {
       console.error('Error downloading recording:', err);
@@ -346,22 +302,7 @@ const CallRecording = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
-    if (status === 'completed') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
-          <span className="h-2 w-2 rounded-full bg-current flex-shrink-0" />
-          Completed
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
-        <span className="h-2 w-2 rounded-full bg-current flex-shrink-0" />
-        {status ? status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ') : 'Unknown'}
-      </span>
-    );
-  };
+  // getStatusBadge replaced with StatusBadge component
 
   return (
     <div className="space-y-6">
@@ -560,18 +501,7 @@ const CallRecording = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        recording.direction === 'inbound'
-                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                          : 'bg-purple-50 text-purple-700 border border-purple-200'
-                      }`}>
-                        {recording.direction === 'inbound' ? (
-                          <FaArrowDown size={10} />
-                        ) : (
-                          <FaArrowUp size={10} />
-                        )}
-                        {recording.callType}
-                      </span>
+                      <CallTypeBadge direction={recording.direction} />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
                       <div className="inline-flex items-center gap-1.5 text-xs text-zinc-600">
@@ -585,7 +515,7 @@ const CallRecording = () => {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex justify-center">
-                        {getStatusBadge(recording.status)}
+                        <StatusBadge status={recording.status} size="md" />
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -623,62 +553,16 @@ const CallRecording = () => {
         </div>
 
         {/* Pagination */}
-        <div className="px-4 py-3 border-t border-zinc-200 bg-zinc-50/60 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
-          <div className="flex items-center gap-3">
-            <div className="text-xs sm:text-sm font-medium text-zinc-600 text-center sm:text-left">
-              Showing <span className="text-emerald-600">{pagination.total > 0 ? startIndex + 1 : 0}</span> to <span className="text-emerald-600">{endIndex}</span> of <span className="text-zinc-900">{pagination.total}</span> recordings
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-zinc-600">Show:</label>
-              <select
-                value={pagination.limit}
-                onChange={(e) => {
-                  setPagination({ ...pagination, limit: parseInt(e.target.value), page: 1 });
-                }}
-                className="px-2 py-1 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-700 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400"
-              >
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-            </div>
-          </div>
-          {pagination.pages > 1 && (
-            <div className="flex items-center space-x-1 sm:space-x-2 flex-wrap justify-center">
-              <button
-                onClick={() => setPagination({ ...pagination, page: 1 })}
-                disabled={pagination.page === 1 || loading}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                First
-              </button>
-              <button
-                onClick={() => setPagination({ ...pagination, page: Math.max(1, pagination.page - 1) })}
-                disabled={pagination.page === 1 || loading}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                Prev
-              </button>
-              <span className="px-2 sm:px-4 py-1 text-xs sm:text-sm font-medium text-zinc-700 whitespace-nowrap bg-white rounded-lg border border-zinc-300">
-                Page <span className="text-emerald-600">{pagination.page}</span> of <span className="text-zinc-900">{pagination.pages}</span>
-              </span>
-              <button
-                onClick={() => setPagination({ ...pagination, page: Math.min(pagination.pages, pagination.page + 1) })}
-                disabled={pagination.page >= pagination.pages || loading}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                Next
-              </button>
-              <button
-                onClick={() => setPagination({ ...pagination, page: pagination.pages })}
-                disabled={pagination.page >= pagination.pages || loading}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                Last
-              </button>
-            </div>
-          )}
-        </div>
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.pages}
+          totalItems={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={(page) => setPagination({ ...pagination, page })}
+          onPageSizeChange={(limit) => setPagination({ ...pagination, limit, page: 1 })}
+          loading={loading}
+          itemLabel="recordings"
+        />
       </div>
     </div>
   );

@@ -2,10 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaSpinner, FaChartBar, FaEye, FaFileDownload, FaTimesCircle, FaPhone, FaClock, FaBullseye, FaSortUp, FaSortDown, FaLanguage, FaUndo, FaPlay, FaPause, FaDownload, FaMicrophone } from 'react-icons/fa';
 import { callAPI, campaignAPI, analyticsAPI, translateAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
-import config from '../config';
+import { formatDuration, getUserId } from '../utils';
+import { useRecording } from '../hooks/useRecording';
+import { SUPPORTED_LANGUAGES } from './CallLogs';
+import StatusBadge from './ui/StatusBadge';
+import Pagination from './ui/Pagination';
 
 const CallSummary = () => {
   const toast = useToast();
+  const { download: downloadRecording, downloading } = useRecording();
   const [loading, setLoading] = useState(true);
   const [calls, setCalls] = useState([]);
   const [error, setError] = useState(null);
@@ -28,7 +33,6 @@ const CallSummary = () => {
   // Audio playback state
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [downloadingRecording, setDownloadingRecording] = useState(false);
   
   // Translation state
   const [selectedLanguage, setSelectedLanguage] = useState('');
@@ -36,49 +40,8 @@ const CallSummary = () => {
   const [translatedSummary, setTranslatedSummary] = useState(null);
   const [translating, setTranslating] = useState(false);
   const [showTranslated, setShowTranslated] = useState(false);
-  const [supportedLanguages] = useState([
-    // Indian Languages
-    { code: 'en', name: 'English' },
-    { code: 'hi', name: 'Hindi' },
-    { code: 'mr', name: 'Marathi' },
-    { code: 'gu', name: 'Gujarati' },
-    { code: 'ta', name: 'Tamil' },
-    { code: 'te', name: 'Telugu' },
-    { code: 'kn', name: 'Kannada' },
-    { code: 'ml', name: 'Malayalam' },
-    { code: 'bn', name: 'Bengali' },
-    { code: 'pa', name: 'Punjabi' },
-    { code: 'ur', name: 'Urdu' },
-    { code: 'as', name: 'Assamese' },
-    { code: 'or', name: 'Odia' },
-    { code: 'ne', name: 'Nepali' },
-    { code: 'gom', name: 'Konkani' },
-    // Asian Languages
-    { code: 'zh', name: 'Chinese' },
-    { code: 'ja', name: 'Japanese' },
-    { code: 'ko', name: 'Korean' },
-    { code: 'th', name: 'Thai' },
-    { code: 'vi', name: 'Vietnamese' },
-    { code: 'id', name: 'Indonesian' },
-    { code: 'ms', name: 'Malay' },
-    { code: 'fil', name: 'Filipino' },
-    // European Languages
-    { code: 'es', name: 'Spanish' },
-    { code: 'fr', name: 'French' },
-    { code: 'de', name: 'German' },
-    { code: 'pt', name: 'Portuguese' },
-    { code: 'it', name: 'Italian' },
-    { code: 'nl', name: 'Dutch' },
-    { code: 'ru', name: 'Russian' },
-    { code: 'pl', name: 'Polish' },
-    { code: 'tr', name: 'Turkish' },
-    { code: 'el', name: 'Greek' },
-    { code: 'sv', name: 'Swedish' },
-    // Middle Eastern Languages
-    { code: 'ar', name: 'Arabic' },
-    { code: 'fa', name: 'Persian' },
-    { code: 'he', name: 'Hebrew' },
-  ]);
+  // Use shared SUPPORTED_LANGUAGES from CallLogs
+  const [supportedLanguages] = useState(SUPPORTED_LANGUAGES);
 
   useEffect(() => {
     fetchCalls();
@@ -206,15 +169,7 @@ const CallSummary = () => {
     });
   };
 
-  const formatDuration = (seconds) => {
-    if (!seconds && seconds !== 0) return '0s';
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    if (minutes > 0) return `${minutes}m ${secs}s`;
-    return `${secs}s`;
-  };
+  // formatDuration is now imported from utils
 
   const handleViewTranscript = (call) => {
     setSelectedCall(call);
@@ -259,52 +214,17 @@ const CallSummary = () => {
     }
   };
 
-  // Handle recording download
+  // Handle recording download using shared hook
   const handleDownloadRecording = async () => {
     if (!selectedCall?._id) return;
 
-    try {
-      setDownloadingRecording(true);
-      toast.success('Downloading recording...');
-
-      const token = localStorage.getItem('authToken');
-      const apiBaseUrl = config.apiBaseUrl;
-      const downloadUrl = `${apiBaseUrl}/api/v1/analytics/calls/${selectedCall._id}/recording/download`;
-
-      const response = await fetch(downloadUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'audio/mpeg, audio/*, */*',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch recording: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `call_recording_${selectedCall._id}.mp3`;
-      link.style.display = 'none';
-
-      document.body.appendChild(link);
-      link.click();
-
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-      }, 100);
-
+    toast.info('Downloading recording...');
+    const success = await downloadRecording(selectedCall._id, `call_recording_${selectedCall._id}.mp3`);
+    
+    if (success) {
       toast.success('Recording downloaded successfully');
-    } catch (err) {
-      console.error('Error downloading recording:', err);
+    } else {
       toast.error('Failed to download recording. Please try again.');
-    } finally {
-      setDownloadingRecording(false);
     }
   };
 
@@ -667,62 +587,16 @@ const CallSummary = () => {
           </table>
         </div>
         {/* Pagination */}
-        <div className="px-4 py-3 border-t border-zinc-200 bg-zinc-50/60 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
-          <div className="flex items-center gap-3">
-            <div className="text-xs sm:text-sm font-medium text-zinc-600 text-center sm:text-left">
-              Showing <span className="text-emerald-600">{((pagination.page - 1) * pagination.limit) + 1}</span> to <span className="text-emerald-600">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="text-zinc-900">{pagination.total}</span> calls
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-zinc-600">Show:</label>
-              <select
-                value={pagination.limit}
-                onChange={(e) => {
-                  setPagination({ ...pagination, limit: parseInt(e.target.value), page: 1 });
-                }}
-                className="px-2 py-1 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-700 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400"
-              >
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-            </div>
-          </div>
-          {pagination.pages > 1 && (
-            <div className="flex items-center space-x-1 sm:space-x-2 flex-wrap justify-center">
-              <button
-                onClick={() => setPagination({ ...pagination, page: 1 })}
-                disabled={pagination.page === 1}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                ««
-              </button>
-              <button
-                onClick={() => setPagination({ ...pagination, page: Math.max(1, pagination.page - 1) })}
-                disabled={pagination.page === 1}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                «
-              </button>
-              <span className="px-2 sm:px-4 py-1 text-xs sm:text-sm font-medium text-zinc-700 whitespace-nowrap bg-white rounded-lg border border-zinc-300">
-                Page <span className="text-emerald-600">{pagination.page}</span> of <span className="text-zinc-900">{pagination.pages}</span>
-              </span>
-              <button
-                onClick={() => setPagination({ ...pagination, page: Math.min(pagination.pages, pagination.page + 1) })}
-                disabled={pagination.page >= pagination.pages}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                »
-              </button>
-              <button
-                onClick={() => setPagination({ ...pagination, page: pagination.pages })}
-                disabled={pagination.page >= pagination.pages}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                »»
-              </button>
-            </div>
-          )}
-        </div>
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.pages}
+          totalItems={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={(page) => setPagination({ ...pagination, page })}
+          onPageSizeChange={(limit) => setPagination({ ...pagination, limit, page: 1 })}
+          loading={loading}
+          itemLabel="calls"
+        />
       </div>
 
       {/* Transcript Modal */}
@@ -866,10 +740,10 @@ const CallSummary = () => {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleDownloadRecording}
-                      disabled={downloadingRecording}
+                      disabled={!!downloading}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white rounded-full text-xs font-medium transition-colors disabled:cursor-not-allowed"
                     >
-                      {downloadingRecording ? (
+                      {downloading ? (
                         <>
                           <FaSpinner className="animate-spin" size={12} />
                           <span>Downloading...</span>

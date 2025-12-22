@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import { FaPhone, FaCalendar, FaClock, FaCheckCircle, FaSpinner, FaPlus, FaEdit, FaTrash, FaRedo, FaSearch, FaFilter, FaChevronDown, FaEye, FaDownload, FaFileExport } from 'react-icons/fa';
 import { callAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useRecording } from '../hooks/useRecording';
 
 const CallBacks = () => {
   const toast = useToast();
+  const { download: downloadRecording } = useRecording();
   const [loading, setLoading] = useState(true);
   const [callBacks, setCallBacks] = useState([]);
   const [updatingStatus, setUpdatingStatus] = useState(null); // Track which follow-up is being updated
@@ -487,34 +489,14 @@ const CallBacks = () => {
     }
   };
 
+  // Download recording using shared hook (fixes broken callAPI.downloadRecording)
   const handleDownloadRecording = async (recordingUrl, callId) => {
-    try {
-      toast.success('Downloading recording...');
-
-      // Use backend API to download recording (avoids CORS issues)
-      const blob = await callAPI.downloadRecording(callId);
-
-      // Create a temporary URL for the blob
-      const blobUrl = window.URL.createObjectURL(blob);
-
-      // Create a temporary link element and trigger download
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `call_recording_${callId || Date.now()}.mp3`;
-      link.style.display = 'none';
-
-      document.body.appendChild(link);
-      link.click();
-
-      // Cleanup after download
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-      }, 100);
-
+    toast.info('Downloading recording...');
+    const success = await downloadRecording(callId, `call_recording_${callId || Date.now()}.mp3`);
+    
+    if (success) {
       toast.success('Recording downloaded successfully');
-    } catch (err) {
-      console.error('Error downloading recording:', err);
+    } else {
       toast.error('Failed to download recording. Please try again.');
     }
   };
@@ -1103,8 +1085,14 @@ const CallBacks = () => {
                       <source src={selectedCallBack.recordingUrl} type="audio/mpeg" />
                       Your browser does not support the audio element.
                     </audio>
-                    <div className="mt-3">
-                    
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        onClick={() => handleDownloadRecording(selectedCallBack.recordingUrl, selectedCallBack._id)}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full text-xs font-medium transition-colors"
+                      >
+                        <FaDownload size={12} />
+                        <span>Download Recording</span>
+                      </button>
                     </div>
                   </div>
                 </div>

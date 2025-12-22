@@ -2,10 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaSearch, FaFilter, FaPhone, FaCalendar, FaCheckCircle, FaTimesCircle, FaClock, FaSpinner, FaPlus, FaVolumeUp, FaFileAlt, FaEye, FaSortUp, FaSortDown, FaFileExport, FaDownload, FaLanguage, FaUndo, FaMicrophone } from 'react-icons/fa';
 import { callAPI, campaignAPI, agentAPI, translateAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
-import config from '../config';
+import { formatDuration } from '../utils';
+import { useRecording } from '../hooks/useRecording';
+import { SUPPORTED_LANGUAGES } from './CallLogs';
+import StatusBadge from './ui/StatusBadge';
+import Pagination from './ui/Pagination';
 
 const Leads = () => {
   const toast = useToast();
+  const { download: downloadRecording, downloading } = useRecording();
   const [loading, setLoading] = useState(true);
   const [leads, setLeads] = useState([]);
   const [updatingStatus, setUpdatingStatus] = useState(null); // Track which lead is being updated
@@ -42,50 +47,8 @@ const Leads = () => {
   const [translatedTranscript, setTranslatedTranscript] = useState(null);
   const [translating, setTranslating] = useState(false);
   const [showTranslated, setShowTranslated] = useState(false);
-  const [downloadingRecording, setDownloadingRecording] = useState(false);
-  const [supportedLanguages] = useState([
-    // Indian Languages
-    { code: 'en', name: 'English' },
-    { code: 'hi', name: 'Hindi' },
-    { code: 'mr', name: 'Marathi' },
-    { code: 'gu', name: 'Gujarati' },
-    { code: 'ta', name: 'Tamil' },
-    { code: 'te', name: 'Telugu' },
-    { code: 'kn', name: 'Kannada' },
-    { code: 'ml', name: 'Malayalam' },
-    { code: 'bn', name: 'Bengali' },
-    { code: 'pa', name: 'Punjabi' },
-    { code: 'ur', name: 'Urdu' },
-    { code: 'as', name: 'Assamese' },
-    { code: 'or', name: 'Odia' },
-    { code: 'ne', name: 'Nepali' },
-    { code: 'gom', name: 'Konkani' },
-    // Asian Languages
-    { code: 'zh', name: 'Chinese' },
-    { code: 'ja', name: 'Japanese' },
-    { code: 'ko', name: 'Korean' },
-    { code: 'th', name: 'Thai' },
-    { code: 'vi', name: 'Vietnamese' },
-    { code: 'id', name: 'Indonesian' },
-    { code: 'ms', name: 'Malay' },
-    { code: 'fil', name: 'Filipino' },
-    // European Languages
-    { code: 'es', name: 'Spanish' },
-    { code: 'fr', name: 'French' },
-    { code: 'de', name: 'German' },
-    { code: 'pt', name: 'Portuguese' },
-    { code: 'it', name: 'Italian' },
-    { code: 'nl', name: 'Dutch' },
-    { code: 'ru', name: 'Russian' },
-    { code: 'pl', name: 'Polish' },
-    { code: 'tr', name: 'Turkish' },
-    { code: 'el', name: 'Greek' },
-    { code: 'sv', name: 'Swedish' },
-    // Middle Eastern Languages
-    { code: 'ar', name: 'Arabic' },
-    { code: 'fa', name: 'Persian' },
-    { code: 'he', name: 'Hebrew' },
-  ]);
+  // Use shared SUPPORTED_LANGUAGES from CallLogs
+  const supportedLanguages = SUPPORTED_LANGUAGES;
 
 
   useEffect(() => {
@@ -135,6 +98,7 @@ const Leads = () => {
             detectedKeywords: detectedKeywords,
             recordingUrl: call.recordingUrl || null,
             callId: call._id || call.callSid || call.sessionId,
+            sessionId: call.sessionId, // Store sessionId for recording downloads
             transcript: call.transcript || null,
             duration: call.durationSec || call.duration || call.callDuration || 0,
             actionStatus: call.actionStatus || 'pending', // Track completion status
@@ -171,6 +135,7 @@ const Leads = () => {
               lead.transcript = call.transcript;
             }
             lead.callId = call._id || call.callSid || call.sessionId;
+            lead.sessionId = call.sessionId; // Update sessionId
             // Update _id to the most recent call's ID for status updates
             lead._id = call._id;
             // Update actionStatus from the most recent call
@@ -558,56 +523,28 @@ const Leads = () => {
     setShowTranslated(false);
   };
 
-  // Handle recording download
+  // Handle recording download using shared hook
   const handleDownloadRecording = async () => {
-    if (!selectedLead?.callId && !selectedLead?._id) {
+    if (!selectedLead?.recordingUrl) {
+      toast.error('No recording available for this call');
+      return;
+    }
+
+    // Use sessionId first (works across both CallLog and LeadsCallLog), then fallback to callId/_id
+    const callId = selectedLead?.sessionId || selectedLead?.callId || selectedLead?._id;
+    
+    if (!callId) {
       toast.error('Call ID not found');
       return;
     }
 
-    try {
-      setDownloadingRecording(true);
-      toast.success('Downloading recording...');
-
-      const token = localStorage.getItem('authToken');
-      const apiBaseUrl = config.apiBaseUrl;
-      const callId = selectedLead.callId || selectedLead._id;
-      const downloadUrl = `${apiBaseUrl}/api/v1/analytics/calls/${callId}/recording/download`;
-
-      const response = await fetch(downloadUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'audio/mpeg, audio/*, */*',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch recording: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `call_recording_${callId}.mp3`;
-      link.style.display = 'none';
-
-      document.body.appendChild(link);
-      link.click();
-
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-      }, 100);
-
+    toast.info('Downloading recording...');
+    const success = await downloadRecording(callId, `call_recording_${callId}.mp3`);
+    
+    if (success) {
       toast.success('Recording downloaded successfully');
-    } catch (err) {
-      console.error('Error downloading recording:', err);
+    } else {
       toast.error('Failed to download recording. Please try again.');
-    } finally {
-      setDownloadingRecording(false);
     }
   };
 
@@ -830,29 +767,16 @@ const Leads = () => {
         </div>
 
         {/* Pagination */}
-        {pagination.pages > 1 && (
-          <div className="px-4 py-4 border-t border-zinc-200 flex items-center justify-between">
-            <div className="text-xs text-zinc-600">
-              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} leads
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
-                disabled={pagination.page === 1}
-                className="px-4 py-2 text-xs border border-zinc-300 text-zinc-700 rounded-full hover:bg-zinc-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
-                disabled={pagination.page >= pagination.pages}
-                className="px-4 py-2 text-xs border border-zinc-300 text-zinc-700 rounded-full hover:bg-zinc-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.pages}
+          totalItems={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={(page) => setPagination({ ...pagination, page })}
+          onPageSizeChange={(limit) => setPagination({ ...pagination, limit, page: 1 })}
+          loading={loading}
+          itemLabel="leads"
+        />
       </div>
 
       {/* Add/Edit Modal */}
@@ -1055,10 +979,10 @@ const Leads = () => {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleDownloadRecording}
-                      disabled={downloadingRecording}
+                      disabled={!!downloading}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white rounded-full text-xs font-medium transition-colors disabled:cursor-not-allowed"
                     >
-                      {downloadingRecording ? (
+                      {downloading ? (
                         <>
                           <FaSpinner className="animate-spin" size={12} />
                           <span>Downloading...</span>

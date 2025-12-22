@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { FaDownload, FaSearch, FaSyncAlt, FaArrowUp, FaArrowDown, FaCoins, FaSortUp, FaSortDown, FaWifi } from 'react-icons/fa';
 import { creditsAPI } from '../services/api';
 import { useCreditWebSocket } from '../hooks/useCreditWebSocket';
+import { formatDuration, getUser, exportToCSV } from '../utils';
+import Pagination from './ui/Pagination';
+import { CreditBadge } from './ui/StatusBadge';
 
 const CreditHistory = () => {
   const [transactions, setTransactions] = useState([]);
@@ -19,7 +22,7 @@ const CreditHistory = () => {
   const [creditNotification, setCreditNotification] = useState(null); // For toast-like notifications
 
   // Get user ID for WebSocket connection
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getUser();
   const userId = user._id || user.id;
 
   // Handle real-time credit updates via WebSocket
@@ -487,46 +490,16 @@ const CreditHistory = () => {
           </table>
         </div>
         {/* Pagination */}
-        {pagination.pages > 1 && (
-          <div className="px-4 py-3 border-t border-zinc-200 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
-            <div className="text-xs font-medium text-zinc-600 text-center sm:text-left">
-              Showing <span className="text-emerald-600">{((pagination.page - 1) * pagination.limit) + 1}</span> to <span className="text-emerald-600">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="text-zinc-900">{pagination.total}</span> transactions
-            </div>
-            <div className="flex items-center space-x-1 sm:space-x-2 flex-wrap justify-center">
-              <button
-                onClick={() => setPagination({ ...pagination, page: 1 })}
-                disabled={pagination.page === 1}
-                className="px-2 sm:px-3 py-1 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                ««
-              </button>
-              <button
-                onClick={() => setPagination({ ...pagination, page: Math.max(1, pagination.page - 1) })}
-                disabled={pagination.page === 1}
-                className="px-2 sm:px-3 py-1 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                «
-              </button>
-              <span className="px-2 sm:px-4 py-1 text-xs font-medium text-zinc-700 whitespace-nowrap bg-white rounded-lg border border-zinc-300">
-                Page <span className="text-emerald-600">{pagination.page}</span> of <span className="text-zinc-900">{pagination.pages}</span>
-              </span>
-              <button
-                onClick={() => setPagination({ ...pagination, page: Math.min(pagination.pages, pagination.page + 1) })}
-                disabled={pagination.page >= pagination.pages}
-                className="px-2 sm:px-3 py-1 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                »
-              </button>
-              <button
-                onClick={() => setPagination({ ...pagination, page: pagination.pages })}
-                disabled={pagination.page >= pagination.pages}
-                className="px-2 sm:px-3 py-1 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                »»
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.pages}
+          totalItems={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={(page) => setPagination({ ...pagination, page })}
+          onPageSizeChange={(limit) => setPagination({ ...pagination, limit, page: 1 })}
+          loading={loading}
+          itemLabel="transactions"
+        />
       </div>
     </div>
   );

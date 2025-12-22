@@ -3,10 +3,59 @@ import { createPortal } from 'react-dom';
 import { FaSearch, FaFilter, FaPhone, FaCheckCircle, FaTimesCircle, FaClock, FaSpinner, FaEye, FaDownload, FaFileExport, FaTimes, FaLanguage, FaUndo } from 'react-icons/fa';
 import { callAPI, translateAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
-import config from '../config';
+import { formatDuration, getUserId, exportToCSV } from '../utils';
+import { useRecording } from '../hooks/useRecording';
+import StatusBadge from './ui/StatusBadge';
+import Pagination from './ui/Pagination';
+
+// Shared supported languages list
+export const SUPPORTED_LANGUAGES = [
+  // Indian Languages
+  { code: 'en', name: 'English' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'mr', name: 'Marathi' },
+  { code: 'gu', name: 'Gujarati' },
+  { code: 'ta', name: 'Tamil' },
+  { code: 'te', name: 'Telugu' },
+  { code: 'kn', name: 'Kannada' },
+  { code: 'ml', name: 'Malayalam' },
+  { code: 'bn', name: 'Bengali' },
+  { code: 'pa', name: 'Punjabi' },
+  { code: 'ur', name: 'Urdu' },
+  { code: 'as', name: 'Assamese' },
+  { code: 'or', name: 'Odia' },
+  { code: 'ne', name: 'Nepali' },
+  { code: 'gom', name: 'Konkani' },
+  // Asian Languages
+  { code: 'zh', name: 'Chinese' },
+  { code: 'ja', name: 'Japanese' },
+  { code: 'ko', name: 'Korean' },
+  { code: 'th', name: 'Thai' },
+  { code: 'vi', name: 'Vietnamese' },
+  { code: 'id', name: 'Indonesian' },
+  { code: 'ms', name: 'Malay' },
+  { code: 'fil', name: 'Filipino' },
+  // European Languages
+  { code: 'es', name: 'Spanish' },
+  { code: 'fr', name: 'French' },
+  { code: 'de', name: 'German' },
+  { code: 'pt', name: 'Portuguese' },
+  { code: 'it', name: 'Italian' },
+  { code: 'nl', name: 'Dutch' },
+  { code: 'ru', name: 'Russian' },
+  { code: 'pl', name: 'Polish' },
+  { code: 'tr', name: 'Turkish' },
+  { code: 'el', name: 'Greek' },
+  { code: 'sv', name: 'Swedish' },
+  // Middle Eastern Languages
+  { code: 'ar', name: 'Arabic' },
+  { code: 'fa', name: 'Persian' },
+  { code: 'he', name: 'Hebrew' },
+];
 
 const CallLogs = () => {
   const toast = useToast();
+  const { download: downloadRecording } = useRecording();
   const [loading, setLoading] = useState(true);
   const [calls, setCalls] = useState([]);
   const [error, setError] = useState(null);
@@ -28,63 +77,7 @@ const CallLogs = () => {
   const [translating, setTranslating] = useState(false);
   const [showTranslated, setShowTranslated] = useState(false);
   
-  const supportedLanguages = [
-    // Indian Languages
-    { code: 'en', name: 'English' },
-    { code: 'hi', name: 'Hindi' },
-    { code: 'mr', name: 'Marathi' },
-    { code: 'gu', name: 'Gujarati' },
-    { code: 'ta', name: 'Tamil' },
-    { code: 'te', name: 'Telugu' },
-    { code: 'kn', name: 'Kannada' },
-    { code: 'ml', name: 'Malayalam' },
-    { code: 'bn', name: 'Bengali' },
-    { code: 'pa', name: 'Punjabi' },
-    { code: 'ur', name: 'Urdu' },
-    { code: 'as', name: 'Assamese' },
-    { code: 'or', name: 'Odia' },
-    { code: 'ne', name: 'Nepali' },
-    { code: 'gom', name: 'Konkani' },
-    // Asian Languages
-    { code: 'zh', name: 'Chinese' },
-    { code: 'ja', name: 'Japanese' },
-    { code: 'ko', name: 'Korean' },
-    { code: 'th', name: 'Thai' },
-    { code: 'vi', name: 'Vietnamese' },
-    { code: 'id', name: 'Indonesian' },
-    { code: 'ms', name: 'Malay' },
-    { code: 'fil', name: 'Filipino' },
-    // European Languages
-    { code: 'es', name: 'Spanish' },
-    { code: 'fr', name: 'French' },
-    { code: 'de', name: 'German' },
-    { code: 'pt', name: 'Portuguese' },
-    { code: 'it', name: 'Italian' },
-    { code: 'nl', name: 'Dutch' },
-    { code: 'ru', name: 'Russian' },
-    { code: 'pl', name: 'Polish' },
-    { code: 'tr', name: 'Turkish' },
-    { code: 'el', name: 'Greek' },
-    { code: 'sv', name: 'Swedish' },
-    // Middle Eastern Languages
-    { code: 'ar', name: 'Arabic' },
-    { code: 'fa', name: 'Persian' },
-    { code: 'he', name: 'Hebrew' },
-  ];
-
-  // Get user from localStorage
-  const getUser = () => {
-    try {
-      return JSON.parse(localStorage.getItem('user') || '{}');
-    } catch {
-      return {};
-    }
-  };
-
-  const getUserId = () => {
-    const user = getUser();
-    return user._id || user.id;
-  };
+  // Use the shared SUPPORTED_LANGUAGES constant exported at the top of this file
 
   useEffect(() => {
     // Reset to page 1 when filters change
@@ -262,79 +255,14 @@ const CallLogs = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
-    const styles = {
-      'completed': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-      'in-progress': 'bg-blue-50 text-blue-700 border border-blue-200',
-      'failed': 'bg-red-50 text-red-700 border border-red-200',
-      'initiated': 'bg-yellow-50 text-yellow-700 border border-yellow-200',
-      'no-answer': 'bg-zinc-100 text-zinc-700 border border-zinc-200',
-      'busy': 'bg-orange-50 text-orange-700 border border-orange-200',
-    };
-    return (
-      <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${styles[status] || styles.initiated}`}
-      >
-        <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
-        {status ? status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ') : 'Unknown'}
-      </span>
-    );
-  };
-
-  const formatDuration = (seconds) => {
-    if (!seconds) return '0s';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    if (mins > 0) return `${mins}m ${secs}s`;
-    return `${secs}s`;
-  };
-
+  // Helper to download recording via backend proxy using shared hook
   const handleDownloadRecording = async (recordingUrl, callId) => {
-    try {
-      toast.success('Downloading recording...');
-
-      // Use backend proxy to avoid CORS issues
-      const token = localStorage.getItem('authToken');
-      const apiBaseUrl = config.apiBaseUrl;
-      const downloadUrl = `${apiBaseUrl}/api/v1/analytics/calls/${callId}/recording/download`;
-
-      // Fetch the audio file through backend proxy
-      const response = await fetch(downloadUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'audio/mpeg, audio/*, */*',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch recording: ${response.status}`);
-      }
-
-      // Get the blob data
-      const blob = await response.blob();
-
-      // Create a temporary URL for the blob
-      const blobUrl = window.URL.createObjectURL(blob);
-
-      // Create a temporary link element and trigger download
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `call_recording_${callId || Date.now()}.mp3`;
-      link.style.display = 'none';
-
-      document.body.appendChild(link);
-      link.click();
-
-      // Cleanup after download
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-      }, 100);
-
+    toast.info('Downloading recording...');
+    const success = await downloadRecording(callId, `call_recording_${callId || Date.now()}.mp3`);
+    
+    if (success) {
       toast.success('Recording downloaded successfully');
-    } catch (err) {
-      console.error('Error downloading recording:', err);
+    } else {
       toast.error('Failed to download recording. Please try again.');
     }
   };
@@ -363,7 +291,7 @@ const CallLogs = () => {
       if (transcriptResponse.success && transcriptResponse.data?.transcript) {
         setTranslatedTranscript(transcriptResponse.data.transcript);
         setShowTranslated(true);
-        toast.success(`Translated to ${supportedLanguages.find(l => l.code === selectedLanguage)?.name || selectedLanguage}`);
+        toast.success(`Translated to ${SUPPORTED_LANGUAGES.find(l => l.code === selectedLanguage)?.name || selectedLanguage}`);
       }
     } catch (err) {
       console.error('Translation error:', err);
@@ -639,7 +567,7 @@ const CallLogs = () => {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex flex-col items-center gap-1">
-                          {getStatusBadge(call.status)}
+                          <StatusBadge status={call.status} />
                           {isInsufficientCredits && (
                             <span className="text-xs text-red-600 font-medium">
                               ⚠ No credits
@@ -672,62 +600,16 @@ const CallLogs = () => {
         </div>
 
         {/* Pagination - Fixed at bottom */}
-        <div className="px-4 py-3 border-t border-zinc-200 bg-zinc-50/60 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
-          <div className="flex items-center gap-3">
-            <div className="text-xs sm:text-sm font-medium text-zinc-600 text-center sm:text-left">
-              Showing <span className="text-emerald-600">{pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0}</span> to <span className="text-emerald-600">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="text-zinc-900">{pagination.total}</span> calls
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-zinc-600">Show:</label>
-              <select
-                value={pagination.limit}
-                onChange={(e) => {
-                  setPagination({ ...pagination, limit: parseInt(e.target.value), page: 1 });
-                }}
-                className="px-2 py-1 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-700 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400"
-              >
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-            </div>
-          </div>
-          {pagination.pages > 1 && (
-            <div className="flex items-center space-x-1 sm:space-x-2 flex-wrap justify-center">
-              <button
-                onClick={() => setPagination({ ...pagination, page: 1 })}
-                disabled={pagination.page === 1 || loading}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                First
-              </button>
-              <button
-                onClick={() => setPagination({ ...pagination, page: Math.max(1, pagination.page - 1) })}
-                disabled={pagination.page === 1 || loading}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                Prev
-              </button>
-              <span className="px-2 sm:px-4 py-1 text-xs sm:text-sm font-medium text-zinc-700 whitespace-nowrap bg-white rounded-lg border border-zinc-300">
-                Page <span className="text-emerald-600">{pagination.page}</span> of <span className="text-zinc-900">{pagination.pages}</span>
-              </span>
-              <button
-                onClick={() => setPagination({ ...pagination, page: Math.min(pagination.pages, pagination.page + 1) })}
-                disabled={pagination.page >= pagination.pages || loading}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                Next
-              </button>
-              <button
-                onClick={() => setPagination({ ...pagination, page: pagination.pages })}
-                disabled={pagination.page >= pagination.pages || loading}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-zinc-300 rounded-lg bg-white text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-              >
-                Last
-              </button>
-            </div>
-          )}
-        </div>
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.pages}
+          totalItems={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={(page) => setPagination({ ...pagination, page })}
+          onPageSizeChange={(limit) => setPagination({ ...pagination, limit, page: 1 })}
+          loading={loading}
+          itemLabel="calls"
+        />
       </div>
 
       {/* Call Details Modal */}
@@ -817,7 +699,7 @@ const CallLogs = () => {
                     <span className="text-sm font-medium text-zinc-700">Translate Content</span>
                     {showTranslated && (
                       <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                        {supportedLanguages.find(l => l.code === selectedLanguage)?.name}
+                        {SUPPORTED_LANGUAGES.find(l => l.code === selectedLanguage)?.name}
                       </span>
                     )}
                   </div>
@@ -829,7 +711,7 @@ const CallLogs = () => {
                       className="px-3 py-1.5 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-700 focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400 min-w-[130px]"
                     >
                       <option value="">Select Language</option>
-                      {supportedLanguages.map((lang) => (
+                      {SUPPORTED_LANGUAGES.map((lang) => (
                         <option key={lang.code} value={lang.code}>
                           {lang.name}
                         </option>
@@ -873,7 +755,7 @@ const CallLogs = () => {
                   <h3 className="text-sm font-semibold text-zinc-900">Transcript</h3>
                   {showTranslated && translatedTranscript && (
                     <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                      {supportedLanguages.find(l => l.code === selectedLanguage)?.name || 'Translated'}
+                      {SUPPORTED_LANGUAGES.find(l => l.code === selectedLanguage)?.name || 'Translated'}
                     </span>
                   )}
                 </div>

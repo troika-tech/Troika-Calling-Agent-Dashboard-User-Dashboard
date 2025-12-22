@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FaSearch, FaFilter, FaClock, FaCheckCircle, FaTimesCircle, FaSpinner, FaEdit, FaTimes, FaCalendar, FaSync, FaEye, FaVolumeUp } from 'react-icons/fa';
+import { FaSearch, FaFilter, FaClock, FaCheckCircle, FaTimesCircle, FaSpinner, FaEdit, FaTimes, FaCalendar, FaSync, FaEye, FaVolumeUp, FaDownload } from 'react-icons/fa';
 import { schedulingAPI, callAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { getUserId } from '../utils';
+import { useRecording } from '../hooks/useRecording';
+import StatusBadge from './ui/StatusBadge';
+import Pagination from './ui/Pagination';
 
 const ScheduledCalls = () => {
   const toast = useToast();
+  const { download: downloadRecording } = useRecording();
   const [loading, setLoading] = useState(true);
   const [scheduledCalls, setScheduledCalls] = useState([]);
   const [error, setError] = useState(null);
@@ -26,19 +31,7 @@ const ScheduledCalls = () => {
   const [rescheduleTime, setRescheduleTime] = useState('');
   const audioRef = useRef(null);
 
-  // Get user from localStorage
-  const getUser = () => {
-    try {
-      return JSON.parse(localStorage.getItem('user') || '{}');
-    } catch {
-      return {};
-    }
-  };
-
-  const getUserId = () => {
-    const user = getUser();
-    return user._id || user.id;
-  };
+  // getUserId imported from utils
 
   useEffect(() => {
     if (pagination.page !== 1) {
@@ -493,6 +486,41 @@ const ScheduledCalls = () => {
                     className="w-full"
                     controls
                   />
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={async () => {
+                        // Prefer stable identifiers used across collections
+                        const callId =
+                          callDetails.sessionId ||
+                          callDetails.exotelCallSid ||
+                          callDetails._id ||
+                          (typeof selectedCall?.callLogId === 'object'
+                            ? selectedCall.callLogId._id
+                            : selectedCall?.callLogId) ||
+                          selectedCall?._id;
+
+                        if (!callId) {
+                          toast.error('Call ID not found for this recording');
+                          return;
+                        }
+
+                        toast.info('Downloading recording...');
+                        const success = await downloadRecording(
+                          callId,
+                          `call_recording_${callId}.mp3`
+                        );
+                        if (success) {
+                          toast.success('Recording downloaded successfully');
+                        } else {
+                          toast.error('Failed to download recording');
+                        }
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full text-xs font-medium transition-colors"
+                    >
+                      <FaDownload size={12} />
+                      <span>Download Recording</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -741,27 +769,16 @@ const ScheduledCalls = () => {
 
           {/* Pagination */}
           {scheduledCalls.length > 0 && (
-            <div className="px-6 py-4 border-t border-zinc-200 flex items-center justify-between">
-              <div className="text-sm text-zinc-600">
-                Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} scheduled calls
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
-                  disabled={pagination.page === 1}
-                  className="px-4 py-2 border border-zinc-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-50"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
-                  disabled={pagination.page >= pagination.pages}
-                  className="px-4 py-2 border border-zinc-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.pages}
+              totalItems={pagination.total}
+              pageSize={pagination.limit}
+              onPageChange={(page) => setPagination({ ...pagination, page })}
+              onPageSizeChange={(limit) => setPagination({ ...pagination, limit, page: 1 })}
+              loading={loading}
+              itemLabel="scheduled calls"
+            />
           )}
         </div>
       )}

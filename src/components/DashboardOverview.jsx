@@ -26,6 +26,8 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { FiPhoneCall } from 'react-icons/fi';
 import { analyticsAPI, wsAPI, campaignAPI, creditsAPI, callAPI, schedulingAPI } from '../services/api';
 import { useCreditWebSocket } from '../hooks/useCreditWebSocket';
+import { formatDuration as formatDurationShared, getUserId as getUserIdUtil } from '../utils';
+import StatusBadge from './ui/StatusBadge';
 
 const DashboardOverview = () => {
   const [loading, setLoading] = useState(true);
@@ -111,22 +113,17 @@ const DashboardOverview = () => {
     }
   }, []);
 
-  // Utility function to format duration from milliseconds to minute:second
+  // Utility function to format duration - supports both milliseconds and seconds
   const formatDuration = (durationMs) => {
     // Handle both milliseconds and seconds (if durationSec is already in seconds)
     // Check if it's likely milliseconds (> 10000) or seconds (< 10000)
     let totalSeconds;
     if (durationMs > 10000) {
-      // Likely milliseconds, convert to seconds
       totalSeconds = Math.floor(durationMs / 1000);
     } else {
-      // Likely already in seconds
       totalSeconds = Math.floor(durationMs);
     }
-    
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return formatDurationShared(totalSeconds, 'padded');
   };
 
   const fetchTopCallsByDuration = async () => {
