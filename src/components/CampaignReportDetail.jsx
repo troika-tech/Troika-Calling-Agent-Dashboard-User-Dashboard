@@ -304,6 +304,57 @@ const CampaignReportDetail = () => {
     );
   };
 
+  const getFailureReasonBadge = (failureReason) => {
+    if (!failureReason) return null;
+
+    // NDNC and compliance violations - RED
+    if (failureReason.toLowerCase().includes('ndnc')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
+          <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
+          NDNC Violation
+        </span>
+      );
+    }
+
+    // Blocked/Compliance - ORANGE
+    if (failureReason.toLowerCase().includes('blocked') || failureReason.toLowerCase().includes('compliance')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap">
+          <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
+          Blocked
+        </span>
+      );
+    }
+
+    // Invalid number - YELLOW
+    if (failureReason.toLowerCase().includes('invalid')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 whitespace-nowrap">
+          <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
+          Invalid Number
+        </span>
+      );
+    }
+
+    // No answer / Busy - GRAY
+    if (failureReason.toLowerCase().includes('no answer') || failureReason.toLowerCase().includes('busy')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-100 text-zinc-600 border border-zinc-200 whitespace-nowrap">
+          <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
+          {failureReason.includes('busy') ? 'Busy' : 'No Answer'}
+        </span>
+      );
+    }
+
+    // Generic failure - show text
+    return (
+      <span className="text-[10px] text-zinc-500 truncate max-w-[150px]" title={failureReason}>
+        {failureReason}
+      </span>
+    );
+  };
+
   const getInteractionBadge = (contact) => {
     const hasInteraction = contact.hasInteraction !== undefined 
       ? contact.hasInteraction 
@@ -735,6 +786,7 @@ const CampaignReportDetail = () => {
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em] whitespace-nowrap">Call Date</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em] whitespace-nowrap">Phone Number</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em] whitespace-nowrap">Call Status</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em] whitespace-nowrap">Failure Reason</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em] whitespace-nowrap">Duration</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em] whitespace-nowrap">Recording</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em] whitespace-nowrap">Transcript</th>
@@ -743,7 +795,7 @@ const CampaignReportDetail = () => {
                 <tbody>
                   {contactsLoading ? (
                     <tr>
-                      <td colSpan="6" className="px-4 py-8 text-center text-zinc-500 text-sm">
+                      <td colSpan="7" className="px-4 py-8 text-center text-zinc-500 text-sm">
                         <div className="flex items-center justify-center gap-2">
                           <FaSpinner className="animate-spin text-emerald-500" size={16} />
                           <span>Loading contacts...</span>
@@ -752,7 +804,7 @@ const CampaignReportDetail = () => {
                     </tr>
                   ) : contacts.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="px-4 py-8 text-center text-zinc-500 text-sm">
+                      <td colSpan="7" className="px-4 py-8 text-center text-zinc-500 text-sm">
                         No contacts found
                       </td>
                     </tr>
@@ -764,6 +816,9 @@ const CampaignReportDetail = () => {
                         </td>
                         <td className="px-4 py-3 text-xs text-zinc-700">{contact.phoneNumber || '-'}</td>
                         <td className="px-4 py-3">{getStatusBadge(contact.callStatus || contact.status)}</td>
+                        <td className="px-4 py-3">
+                          {contact.failureReason ? getFailureReasonBadge(contact.failureReason) : <span className="text-xs text-zinc-400">-</span>}
+                        </td>
                         <td className="px-4 py-3 text-xs text-zinc-700">
                           {contact.duration 
                             ? formatDuration(contact.duration) 

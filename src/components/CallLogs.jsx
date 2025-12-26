@@ -70,14 +70,65 @@ const CallLogs = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedCall, setSelectedCall] = useState(null);
   const [exporting, setExporting] = useState(false);
-  
+
   // Translation state
   const [selectedLanguage, setSelectedLanguage] = useState('');
   const [translatedTranscript, setTranslatedTranscript] = useState(null);
   const [translating, setTranslating] = useState(false);
   const [showTranslated, setShowTranslated] = useState(false);
-  
+
   // Use the shared SUPPORTED_LANGUAGES constant exported at the top of this file
+
+  const getFailureReasonBadge = (failureReason) => {
+    if (!failureReason) return null;
+
+    // NDNC and compliance violations - RED
+    if (failureReason.toLowerCase().includes('ndnc')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
+          <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
+          NDNC Violation
+        </span>
+      );
+    }
+
+    // Blocked/Compliance - ORANGE
+    if (failureReason.toLowerCase().includes('blocked') || failureReason.toLowerCase().includes('compliance')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap">
+          <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
+          Blocked
+        </span>
+      );
+    }
+
+    // Invalid number - YELLOW
+    if (failureReason.toLowerCase().includes('invalid')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 whitespace-nowrap">
+          <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
+          Invalid Number
+        </span>
+      );
+    }
+
+    // No answer / Busy - GRAY
+    if (failureReason.toLowerCase().includes('no answer') || failureReason.toLowerCase().includes('busy')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-100 text-zinc-600 border border-zinc-200 whitespace-nowrap">
+          <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
+          {failureReason.includes('busy') ? 'Busy' : 'No Answer'}
+        </span>
+      );
+    }
+
+    // Generic failure - show text
+    return (
+      <span className="text-[10px] text-zinc-500 truncate max-w-[150px]" title={failureReason}>
+        {failureReason}
+      </span>
+    );
+  };
 
   useEffect(() => {
     // Reset to page 1 when filters change
@@ -514,6 +565,9 @@ const CallLogs = () => {
                   Status
                 </th>
                 <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">
+                  Failure Reason
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">
                   Details
                 </th>
               </tr>
@@ -521,7 +575,7 @@ const CallLogs = () => {
             <tbody className="divide-y divide-zinc-100">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-8 text-center">
+                  <td colSpan="9" className="px-4 py-8 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <FaSpinner className="animate-spin text-emerald-500" size={20} />
                       <span className="text-zinc-500 text-sm">Loading...</span>
@@ -530,7 +584,7 @@ const CallLogs = () => {
                 </tr>
               ) : calls.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-8 text-center text-zinc-500 text-sm">
+                  <td colSpan="9" className="px-4 py-8 text-center text-zinc-500 text-sm">
                     No calls found
                   </td>
                 </tr>
@@ -574,6 +628,9 @@ const CallLogs = () => {
                             </span>
                           )}
                         </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {call.failureReason ? getFailureReasonBadge(call.failureReason) : <span className="text-xs text-zinc-400">-</span>}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <button
