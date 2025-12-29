@@ -82,8 +82,10 @@ const CallLogs = () => {
   const getFailureReasonBadge = (failureReason) => {
     if (!failureReason) return null;
 
+    const reasonLower = failureReason.toLowerCase();
+
     // NDNC and compliance violations - RED
-    if (failureReason.toLowerCase().includes('ndnc')) {
+    if (reasonLower.includes('ndnc')) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
           <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
@@ -92,12 +94,22 @@ const CallLogs = () => {
       );
     }
 
-    // Blocked/Compliance - ORANGE
-    if (failureReason.toLowerCase().includes('blocked') || failureReason.toLowerCase().includes('compliance')) {
+    // DND - ORANGE
+    if (reasonLower === 'dnd' || reasonLower.includes('dnd')) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap">
           <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
-          Blocked
+          DND
+        </span>
+      );
+    }
+
+    // Compliance/Blocked - ORANGE
+    if (reasonLower === 'compliance' || reasonLower.includes('blocked') || reasonLower.includes('compliance')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap">
+          <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
+          {reasonLower === 'compliance' ? 'Compliance' : 'Blocked'}
         </span>
       );
     }
