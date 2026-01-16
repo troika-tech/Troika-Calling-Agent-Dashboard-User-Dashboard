@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FaSpinner, FaPlay, FaPause, FaCheckCircle, FaTimesCircle, FaPhone, FaClock, FaUsers, FaSyncAlt } from 'react-icons/fa';
+import { FaSpinner, FaPlay, FaPause, FaCheckCircle, FaTimesCircle, FaPhone, FaClock, FaUsers, FaSyncAlt, FaRedo } from 'react-icons/fa';
 import { campaignAPI, callAPI, wsAPI } from '../services/api';
 import config from '../config';
 
@@ -38,51 +38,83 @@ const LiveStatus = () => {
       const activeCampaigns = allCampaigns.filter(
         campaign => campaign.status === 'active' || campaign.status === 'running'
       );
-      
-      // Fetch detailed stats for each active campaign
+
+      // Fetch detailed stats for each active campaign using same endpoint as campaign page
       const campaignsWithStats = await Promise.all(
         activeCampaigns.map(async (campaign) => {
           try {
-            // Get debug info for detailed stats
-            const debugResponse = await fetch(
-              `${config.apiBaseUrl}/api/v1/campaigns/${campaign._id}/debug`
+            // Use same endpoint as campaign page: GET /api/v1/campaigns/:id
+            const campaignResponse = await fetch(
+              `${config.apiBaseUrl}/api/v1/campaigns/${campaign._id}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                  'Content-Type': 'application/json',
+                }
+              }
             );
-            
-            if (debugResponse.ok) {
-              const debugData = await debugResponse.json();
+
+            if (campaignResponse.ok) {
+              const campaignData = await campaignResponse.json();
+              const fullCampaign = campaignData.data || campaignData;
+              
+              // Calculate processed calls same way as campaigns page
+              // Includes completed, failed, skipped, and voicemail calls
+              const processedCalls = (fullCampaign.completedCalls || 0) + 
+                                    (fullCampaign.failedCalls || 0) + 
+                                    (fullCampaign.skippedCalls || 0) + 
+                                    (fullCampaign.voicemailCalls || 0);
+              const processedCallsCapped = Math.min(processedCalls, fullCampaign.totalContacts || 0);
+              
+              // Calculate remaining/queue same way as campaigns page
+              // "in queue" = remaining unprocessed contacts
+              const remaining = Math.max(0, (fullCampaign.totalContacts || 0) - processedCallsCapped);
+              
               return {
-                ...campaign,
+                ...fullCampaign,
                 liveStats: {
-                  activeCalls: debugData.debugInfo?.stats?.activeCallsCount || 0,
-                  queueLength: debugData.debugInfo?.stats?.queueLength || 0,
-                  completed: debugData.debugInfo?.stats?.completedCalls || campaign.completedCalls || 0,
-                  failed: debugData.debugInfo?.stats?.failedCalls || campaign.failedCalls || 0,
-                  processed: debugData.debugInfo?.stats?.processedNumbers || 0,
-                  remaining: debugData.debugInfo?.stats?.remainingNumbers || 0,
-                  totalNumbers: debugData.debugInfo?.stats?.totalNumbers || campaign.phoneNumbers?.length || 0,
+                  activeCalls: fullCampaign.activeCalls || 0,
+                  queueLength: remaining, // Use calculated remaining (same as campaigns page)
+                  completed: fullCampaign.completedCalls || 0,
+                  failed: fullCampaign.failedCalls || 0,
+                  processed: processedCallsCapped,
+                  remaining: remaining,
+                  totalNumbers: fullCampaign.totalContacts || 0,
+                  retryContacts: fullCampaign.contactsSetForRetry || 0,
+                  retryAttempts: fullCampaign.totalRetriesMade || 0,
                 }
               };
             }
           } catch (err) {
-            console.warn(`Failed to fetch debug info for campaign ${campaign._id}:`, err);
+            console.warn(`Failed to fetch campaign details for ${campaign._id}:`, err);
           }
-          
+
           // Fallback to basic campaign data
+          // Calculate same way as campaigns page
+          const processedCalls = (campaign.completedCalls || 0) + 
+                                  (campaign.failedCalls || 0) + 
+                                  (campaign.skippedCalls || 0) + 
+                                  (campaign.voicemailCalls || 0);
+          const processedCallsCapped = Math.min(processedCalls, campaign.totalContacts || 0);
+          const remaining = Math.max(0, (campaign.totalContacts || 0) - processedCallsCapped);
+          
           return {
             ...campaign,
             liveStats: {
-              activeCalls: 0,
-              queueLength: 0,
+              activeCalls: campaign.activeCalls || 0,
+              queueLength: remaining, // Use calculated remaining (same as campaigns page)
               completed: campaign.completedCalls || 0,
               failed: campaign.failedCalls || 0,
-              processed: (campaign.completedCalls || 0) + (campaign.failedCalls || 0),
-              remaining: (campaign.phoneNumbers?.length || 0) - ((campaign.completedCalls || 0) + (campaign.failedCalls || 0)),
-              totalNumbers: campaign.phoneNumbers?.length || 0,
+              processed: processedCallsCapped,
+              remaining: remaining,
+              totalNumbers: campaign.totalContacts || 0,
+              retryContacts: campaign.contactsSetForRetry || 0,
+              retryAttempts: campaign.totalRetriesMade || 0,
             }
           };
         })
       );
-      
+
       setCampaigns(campaignsWithStats);
       setLastUpdated(new Date());
     } catch (err) {
@@ -99,7 +131,7 @@ const LiveStatus = () => {
 
   useEffect(() => {
     fetchLiveStatus();
-    
+
     if (autoRefresh) {
       const interval = setInterval(fetchLiveStatus, 5000); // Refresh every 5 seconds
       return () => clearInterval(interval);
@@ -121,12 +153,11 @@ const LiveStatus = () => {
       'completed': 'bg-blue-50 text-blue-700 border border-blue-200',
       'stopped': 'bg-red-50 text-red-700 border border-red-200',
     };
-    
+
     return (
       <span
-        className={`px-2 py-0.5 inline-flex text-[11px] font-medium rounded-full whitespace-nowrap w-fit self-start ${
-          styles[status] || styles.stopped
-        }`}
+        className={`px-2 py-0.5 inline-flex text-[11px] font-medium rounded-full whitespace-nowrap w-fit self-start ${styles[status] || styles.stopped
+          }`}
       >
         {status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'}
       </span>
@@ -168,11 +199,10 @@ const LiveStatus = () => {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 sm:mt-0">
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-full border transition-colors text-xs font-medium ${
-              autoRefresh
+            className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-full border transition-colors text-xs font-medium ${autoRefresh
                 ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-500'
                 : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-            }`}
+              }`}
           >
             <FaSyncAlt className={autoRefresh ? 'animate-spin' : ''} />
             <span>{autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}</span>
@@ -232,36 +262,33 @@ const LiveStatus = () => {
                 {systemStats.memory?.used || 0}MB
               </p>
             </div>
-            <div className={`rounded-lg p-4 border ${
-              systemStats.deepgramPool?.status === 'healthy'
+            <div className={`rounded-lg p-4 border ${systemStats.deepgramPool?.status === 'healthy'
                 ? 'bg-emerald-50 border-emerald-200'
                 : systemStats.deepgramPool?.status === 'critical'
-                ? 'bg-red-50 border-red-200'
-                : 'bg-yellow-50 border-yellow-200'
-            }`}>
+                  ? 'bg-red-50 border-red-200'
+                  : 'bg-yellow-50 border-yellow-200'
+              }`}>
               <div className="flex items-center space-x-2 mb-2">
                 <FaSyncAlt className={
                   systemStats.deepgramPool?.status === 'healthy'
                     ? 'text-emerald-600'
                     : systemStats.deepgramPool?.status === 'critical'
-                    ? 'text-red-600'
-                    : 'text-yellow-600'
+                      ? 'text-red-600'
+                      : 'text-yellow-600'
                 } size={16} />
-                <span className={`text-xs font-medium ${
-                  systemStats.deepgramPool?.status === 'healthy'
+                <span className={`text-xs font-medium ${systemStats.deepgramPool?.status === 'healthy'
                     ? 'text-emerald-700'
                     : systemStats.deepgramPool?.status === 'critical'
-                    ? 'text-red-700'
-                    : 'text-yellow-700'
-                }`}>Pool Status</span>
+                      ? 'text-red-700'
+                      : 'text-yellow-700'
+                  }`}>Pool Status</span>
               </div>
-              <p className={`text-2xl font-bold ${
-                systemStats.deepgramPool?.status === 'healthy'
+              <p className={`text-2xl font-bold ${systemStats.deepgramPool?.status === 'healthy'
                   ? 'text-emerald-900'
                   : systemStats.deepgramPool?.status === 'critical'
-                  ? 'text-red-900'
-                  : 'text-yellow-900'
-              }`}>
+                    ? 'text-red-900'
+                    : 'text-yellow-900'
+                }`}>
                 {systemStats.deepgramPool?.utilization
                   ? Math.round(systemStats.deepgramPool.utilization) + '%'
                   : 'N/A'}
@@ -286,7 +313,7 @@ const LiveStatus = () => {
           {campaigns.map((campaign) => {
             const stats = campaign.liveStats || {};
             const progress = getProgressPercentage(campaign);
-            
+
             return (
               <div
                 key={campaign._id}
@@ -335,7 +362,7 @@ const LiveStatus = () => {
                   </div>
 
                   {/* Live Stats Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-6">
                     {/* Active Calls */}
                     <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                       <div className="flex items-center space-x-2 mb-2">
@@ -385,6 +412,32 @@ const LiveStatus = () => {
                       </div>
                       <p className="text-2xl font-bold text-red-900">
                         {stats.failed || 0}
+                      </p>
+                    </div>
+
+                    {/* Retry Contact */}
+                    <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <FaRedo className="text-purple-600" size={16} />
+                        <span className="text-xs font-medium text-purple-700">
+                          Retry Contact
+                        </span>
+                      </div>
+                      <p className="text-2xl font-bold text-purple-900">
+                        {stats.retryContacts || 0}
+                      </p>
+                    </div>
+
+                    {/* Retry Attempt */}
+                    <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <FaRedo className="text-indigo-600" size={16} />
+                        <span className="text-xs font-medium text-indigo-700">
+                          Retry Attempt
+                        </span>
+                      </div>
+                      <p className="text-2xl font-bold text-indigo-900">
+                        {stats.retryAttempts || 0}
                       </p>
                     </div>
                   </div>
