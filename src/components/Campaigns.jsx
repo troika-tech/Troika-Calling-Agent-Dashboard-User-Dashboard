@@ -49,6 +49,8 @@ const Campaigns = () => {
   const [downloadingCallDetails, setDownloadingCallDetails] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
   const [maxConcurrentLimit, setMaxConcurrentLimit] = useState(2); // Store phone's concurrent limit
+  const [campaignLogs, setCampaignLogs] = useState([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   useEffect(() => {
     fetchCampaigns();
@@ -81,19 +83,42 @@ const Campaigns = () => {
     return () => clearInterval(interval);
   }, [filterStatus, searchQuery]);
 
+  // Fetch logs for the selected campaign when modal opens
+  useEffect(() => {
+    if (showViewModal && selectedCampaign) {
+      fetchCampaignLogs(selectedCampaign._id);
+    } else {
+      setCampaignLogs([]);
+    }
+  }, [showViewModal, selectedCampaign]);
+
+  const fetchCampaignLogs = async (campaignId) => {
+    try {
+      setLogsLoading(true);
+      const response = await callAPI.getAllCalls({ campaignId, limit: 100 });
+      const logs = response.data?.calls || response.data || [];
+      setCampaignLogs(logs);
+    } catch (err) {
+      console.error('Error fetching campaign logs:', err);
+      toast.error('Failed to load call logs');
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
   const handleCsvImport = (file, isSchedule = false) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const text = e.target.result;
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-        
+
         // Extract phone numbers and names from CSV (handle both single column and multiple columns)
         const contacts = [];
         let hasHeader = false;
         let phoneColumnIndex = 0;
         let nameColumnIndex = 1;
-        
+
         lines.forEach((line, index) => {
           // Check if first line is a header
           if (index === 0) {
@@ -109,17 +134,17 @@ const Campaigns = () => {
               return;
             }
           }
-          
+
           // Skip header row
           if (hasHeader && index === 0) return;
-          
+
           // Split by comma
           const columns = line.split(',').map(col => col.trim());
-          
+
           // Determine phone number and name columns
           let phoneNumber;
           let name = '';
-          
+
           if (hasHeader) {
             // Use the column indices we found from header
             phoneNumber = columns[phoneColumnIndex] || columns[0];
@@ -133,10 +158,10 @@ const Campaigns = () => {
               name = columns[1].replace(/^["']|["']$/g, '');
             }
           }
-          
+
           // Remove quotes if present from phone number
           const cleanNumber = phoneNumber ? phoneNumber.replace(/^["']|["']$/g, '') : '';
-          
+
           if (cleanNumber && /^[0-9+\-() ]+$/.test(cleanNumber.replace(/\s/g, ''))) {
             contacts.push({
               phoneNumber: cleanNumber,
@@ -155,14 +180,14 @@ const Campaigns = () => {
         const namesCount = contacts.filter(c => c.name).length;
 
         if (isSchedule) {
-          setScheduleData({ 
-            ...scheduleData, 
+          setScheduleData({
+            ...scheduleData,
             phoneNumbers: phoneNumbersText,
             contacts: contacts
           });
         } else {
-          setFormData({ 
-            ...formData, 
+          setFormData({
+            ...formData,
             phoneNumbers: phoneNumbersText,
             contacts: contacts
           });
@@ -268,7 +293,7 @@ const Campaigns = () => {
           .split('\n')
           .map(line => line.trim())
           .filter(line => line.length > 0);
-        
+
         contacts = lines.map(line => {
           // Check if line contains a comma (format: number,name)
           if (line.includes(',')) {
@@ -405,7 +430,7 @@ const Campaigns = () => {
           .split('\n')
           .map(line => line.trim())
           .filter(line => line.length > 0);
-        
+
         contacts = lines.map(line => {
           // Check if line contains a comma (format: number,name)
           if (line.includes(',')) {
@@ -780,6 +805,12 @@ const Campaigns = () => {
                   Concurrent
                 </th>
                 <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">
+                  Retry Contact
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">
+                  Retry Attempt
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">
                   Status
                 </th>
                 <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">
@@ -798,13 +829,13 @@ const Campaigns = () => {
                 paginatedCampaigns.map((campaign) => {
                   // Progress includes both completed and failed calls (all processed calls)
                   // CRITICAL: Cap at 100% to prevent showing more than 100% progress
-                  const processedCalls = (campaign.completedCalls || 0) + (campaign.failedCalls || 0);
+                  const processedCalls = (campaign.completedCalls || 0) + (campaign.failedCalls || 0) + (campaign.skippedCalls || 0) + (campaign.voicemailCalls || 0);
                   const processedCallsCapped = Math.min(processedCalls, campaign.totalContacts); // Cap at totalContacts
                   const progress = campaign.totalContacts > 0
                     ? Math.min(Math.round((processedCallsCapped / campaign.totalContacts) * 100), 100) // Cap at 100%
                     : 0;
                   const remaining = Math.max(0, campaign.totalContacts - processedCallsCapped); // Don't show negative
-                  
+
                   return (
                     <tr
                       key={campaign._id}
@@ -837,9 +868,14 @@ const Campaigns = () => {
                               ({campaign.completedCalls} completed)
                             </span>
                           )}
-                          {campaign.failedCalls > 0 && (
+                          {(campaign.failedCalls + (campaign.skippedCalls || 0)) > 0 && (
                             <span className="text-red-600 ml-2">
-                              ({campaign.failedCalls} failed)
+                              ({(campaign.failedCalls || 0) + (campaign.skippedCalls || 0)} failed)
+                            </span>
+                          )}
+                          {campaign.voicemailCalls > 0 && (
+                            <span className="text-blue-600 ml-2">
+                              ({campaign.voicemailCalls} voicemail)
                             </span>
                           )}
                         </div>
@@ -856,6 +892,12 @@ const Campaigns = () => {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-600">
                         {campaign.settings?.concurrentCallsLimit || 2} at a time
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-600 font-medium">
+                        {campaign.contactsSetForRetry || 0}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-emerald-600 font-medium">
+                        {campaign.totalRetriesMade || 0}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {campaign.status === 'active' ? (
@@ -974,7 +1016,7 @@ const Campaigns = () => {
       {/* View Campaign Details Modal */}
       {showViewModal && selectedCampaign && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="glass-card rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="glass-card rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-zinc-200">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold text-zinc-900">
@@ -1097,7 +1139,31 @@ const Campaigns = () => {
                       Failed Calls
                     </label>
                     <p className="text-sm text-zinc-900">
-                      {selectedCampaign.failedCalls || 0}
+                      {(selectedCampaign.failedCalls || 0) + (selectedCampaign.skippedCalls || 0)}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">
+                      Voicemail Calls
+                    </label>
+                    <p className="text-sm text-zinc-900">
+                      {selectedCampaign.voicemailCalls || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">
+                      Retry Contact
+                    </label>
+                    <p className="text-sm text-zinc-900">
+                      {selectedCampaign.contactsSetForRetry || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">
+                      Retry Attempt
+                    </label>
+                    <p className="text-sm text-emerald-600 font-medium">
+                      {selectedCampaign.totalRetriesMade || 0}
                     </p>
                   </div>
                 </div>
@@ -1120,6 +1186,73 @@ const Campaigns = () => {
                     </>
                   )}
                 </button>
+              </div>
+
+              {/* Call Logs Table */}
+              <div className="mt-6">
+                <h3 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center justify-between">
+                  <span>Recent Call Logs</span>
+                  {logsLoading && <FaSpinner className="animate-spin text-emerald-500" size={12} />}
+                </h3>
+
+                <div className="border border-zinc-200 rounded-xl overflow-hidden bg-zinc-50/30">
+                  <div className="max-h-64 overflow-y-auto scrollbar-thin">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-zinc-100 sticky top-0 z-10">
+                        <tr>
+                          <th className="px-3 py-2 font-medium text-zinc-600">Date</th>
+                          <th className="px-3 py-2 font-medium text-zinc-600">Numbers</th>
+                          <th className="px-3 py-2 font-medium text-zinc-600">Status</th>
+                          <th className="px-3 py-2 font-medium text-zinc-600">Duration</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logsLoading && campaignLogs.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" className="px-3 py-8 text-center text-zinc-500">
+                              Loading logs...
+                            </td>
+                          </tr>
+                        ) : campaignLogs.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" className="px-3 py-8 text-center text-zinc-500">
+                              No calls made yet
+                            </td>
+                          </tr>
+                        ) : (
+                          campaignLogs.map((log) => (
+                            <tr key={log._id} className="border-t border-zinc-200 bg-white/50 hover:bg-zinc-50/80 transition-colors">
+                              <td className="px-3 py-2.5 text-zinc-600 whitespace-nowrap">
+                                {new Date(log.createdAt).toLocaleDateString()} {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </td>
+                              <td className="px-3 py-2.5 font-medium text-zinc-900">
+                                {log.toPhone}
+                              </td>
+                              <td className="px-3 py-2.5">
+                                {getStatusBadge(log.status)}
+                              </td>
+                              <td className="px-3 py-2.5 text-zinc-600">
+                                {log.durationSec ? `${Math.floor(log.durationSec / 60)}m ${log.durationSec % 60}s` : '-'}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-center">
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      // Navigate to delivery report for full details
+                      window.location.hash = `#/delivery-reports/${selectedCampaign._id}`;
+                    }}
+                    className="text-[11px] font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition-colors"
+                  >
+                    View All Details <span className="text-xs">→</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div className="p-6 border-t border-zinc-200 flex justify-end">
@@ -1284,9 +1417,8 @@ const Campaigns = () => {
                       setFormData({ ...formData, concurrentCalls: value });
                     }
                   }}
-                  className={`w-full px-4 py-2 border rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 text-xs ${
-                    concurrentCallsError ? 'border-red-300' : 'border-zinc-200'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 text-xs ${concurrentCallsError ? 'border-red-300' : 'border-zinc-200'
+                    }`}
                 />
                 {concurrentCallsError && (
                   <p className="text-xs text-red-500 mt-2">
@@ -1328,10 +1460,10 @@ const Campaigns = () => {
                   disabled={loading}
                   className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full text-xs font-medium transition-colors disabled:opacity-50"
                 >
-                  {loading 
-                    ? 'Creating...' 
-                    : formData.scriptFile 
-                      ? 'Send for Approval' 
+                  {loading
+                    ? 'Creating...'
+                    : formData.scriptFile
+                      ? 'Send for Approval'
                       : 'Create & Start Campaign'}
                 </button>
               </div>
@@ -1353,9 +1485,9 @@ const Campaigns = () => {
                   onClick={() => {
                     setShowScheduleModal(false);
                     setScheduleConcurrentCallsError('');
-                    setScheduleData({ 
-                      name: '', 
-                      phoneNumbers: '', 
+                    setScheduleData({
+                      name: '',
+                      phoneNumbers: '',
                       concurrentCalls: 2,
                       scheduleDate: '',
                       scheduleTime: '',
@@ -1496,9 +1628,8 @@ const Campaigns = () => {
                       setScheduleData({ ...scheduleData, concurrentCalls: value });
                     }
                   }}
-                  className={`w-full px-4 py-2 border rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 text-xs ${
-                    scheduleConcurrentCallsError ? 'border-red-300' : 'border-zinc-200'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 text-xs ${scheduleConcurrentCallsError ? 'border-red-300' : 'border-zinc-200'
+                    }`}
                 />
                 {scheduleConcurrentCallsError && (
                   <p className="text-xs text-red-500 mt-2">
@@ -1550,19 +1681,19 @@ const Campaigns = () => {
                   onClick={() => {
                     setShowScheduleModal(false);
                     setScheduleConcurrentCallsError('');
-        setScheduleData({ 
-          name: '', 
-          phoneNumbers: '', 
-          concurrentCalls: 2,
-          scheduleDate: '',
-          scheduleTime: '',
-          includeGreeting: false,
-          useScript: false,
-          scriptFile: null
-        });
-        if (scheduleScriptFileInputRef.current) {
-          scheduleScriptFileInputRef.current.value = '';
-        }
+                    setScheduleData({
+                      name: '',
+                      phoneNumbers: '',
+                      concurrentCalls: 2,
+                      scheduleDate: '',
+                      scheduleTime: '',
+                      includeGreeting: false,
+                      useScript: false,
+                      scriptFile: null
+                    });
+                    if (scheduleScriptFileInputRef.current) {
+                      scheduleScriptFileInputRef.current.value = '';
+                    }
                   }}
                   className="px-6 py-2 border border-zinc-300 rounded-full text-zinc-700 hover:bg-zinc-50 transition-colors text-xs font-medium"
                 >
@@ -1573,10 +1704,10 @@ const Campaigns = () => {
                   disabled={loading}
                   className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full text-xs font-medium transition-colors disabled:opacity-50"
                 >
-                  {loading 
-                    ? 'Scheduling...' 
-                    : scheduleData.scriptFile 
-                      ? 'Send for Approval' 
+                  {loading
+                    ? 'Scheduling...'
+                    : scheduleData.scriptFile
+                      ? 'Send for Approval'
                       : 'Schedule Campaign'}
                 </button>
               </div>
@@ -1606,7 +1737,7 @@ const Campaigns = () => {
               <p className="text-xs text-zinc-600">
                 Your CSV file should have number and name columns. You can include a header row (optional).
               </p>
-              
+
               <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
                 <h3 className="text-xs font-semibold text-zinc-700 mb-3">
                   Example CSV Format:

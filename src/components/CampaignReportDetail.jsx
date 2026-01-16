@@ -4,12 +4,12 @@
 // seeing both 'user-dashboard' and 'User-Dashboard' directories as duplicates
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  FaArrowLeft, 
-  FaPhone, 
-  FaCheckCircle, 
-  FaTimesCircle, 
-  FaClock, 
+import {
+  FaArrowLeft,
+  FaPhone,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaClock,
   FaDollarSign,
   FaPlay,
   FaCircle,
@@ -33,13 +33,13 @@ const CampaignReportDetail = () => {
   const [callLogs, setCallLogs] = useState([]); // Keep for backward compatibility
   const [stats, setStats] = useState(null);
   const [overviewData, setOverviewData] = useState(null);
-  
+
   // Analytics tab - Campaign Contacts with server-side pagination
   const [contacts, setContacts] = useState([]);
   const [contactsLoading, setContactsLoading] = useState(false);
   const [contactsTotal, setContactsTotal] = useState(0);
   const [contactsPages, setContactsPages] = useState(0);
-  
+
   // Filters for Analytics tab
   const [phoneFilter, setPhoneFilter] = useState([]); // Changed to array for multiple selection
   const [statusFilter, setStatusFilter] = useState('');
@@ -95,17 +95,17 @@ const CampaignReportDetail = () => {
       // Fetch campaign report overview (includes all data for overview tab)
       const overviewResponse = await campaignAPI.getReportOverview(campaignId);
       const overviewData = overviewResponse.data || overviewResponse;
-      
+
       if (!overviewData || !overviewData.campaign) {
         throw new Error('Campaign not found');
       }
 
       // Set campaign data
       setCampaign(overviewData.campaign);
-      
+
       // Set overview data for display
       setOverviewData(overviewData.overview);
-      
+
       // Set stats from overview data
       if (overviewData.overview) {
         setStats({
@@ -114,14 +114,14 @@ const CampaignReportDetail = () => {
           failedCalls: overviewData.overview.failedCalls || 0,
         });
       }
-        
+
       // Note: Campaign contacts are now fetched separately when analytics tab is active
     } catch (err) {
       console.error('Error fetching campaign details:', err);
-      const errorMessage = err.response?.data?.error || 
-                          err.response?.data?.message || 
-                          err.message || 
-                          'Failed to load campaign details';
+      const errorMessage = err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to load campaign details';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -135,30 +135,30 @@ const CampaignReportDetail = () => {
   // Fetch campaign contacts with server-side pagination
   const fetchCampaignContacts = async () => {
     if (!campaignId) return;
-    
+
     try {
       setContactsLoading(true);
-      
+
       const params = {
         page: currentPage,
         limit: entriesPerPage === 10000 ? 10000 : entriesPerPage, // Use large limit for "All"
       };
-      
+
       if (statusFilter) {
         params.status = statusFilter;
       }
-      
+
       if (phoneFilter && phoneFilter.length > 0) {
         params.phoneNumbers = phoneFilter;
       }
-      
+
       if (interactionFilter) {
         params.hasInteraction = interactionFilter === 'interaction';
       }
-      
+
       const response = await campaignAPI.getAnalyticsContacts(campaignId, params);
       const data = response.data || response;
-      
+
       setContacts(data.contacts || []);
       setContactsTotal(data.total || 0);
       setContactsPages(data.pages || 0);
@@ -228,25 +228,25 @@ const CampaignReportDetail = () => {
     const totalCalls = campaign?.phoneNumbers?.length || stats?.totalNumbers || 0;
     const completed = campaign?.completedCalls || stats?.completedCalls || 0;
     const failed = campaign?.failedCalls || stats?.failedCalls || 0;
-    const pickedUp = callLogs.filter(call => 
+    const pickedUp = callLogs.filter(call =>
       call.status === 'completed' || call.status === 'in-progress'
     ).length;
     const pickupRate = totalCalls > 0 ? ((pickedUp / totalCalls) * 100).toFixed(0) : 0;
-    
+
     // Calculate not reachable
-    const notReachable = callLogs.filter(call => 
+    const notReachable = callLogs.filter(call =>
       call.status === 'no-answer' || call.status === 'busy' || call.status === 'failed'
     ).length;
     const noAnswer = callLogs.filter(call => call.status === 'no-answer').length;
     const busy = callLogs.filter(call => call.status === 'busy').length;
     const failedCount = callLogs.filter(call => call.status === 'failed').length;
-    
+
     // Calculate interaction
-    const noInteraction = callLogs.filter(call => 
+    const noInteraction = callLogs.filter(call =>
       call.status === 'completed' && (!call.transcript || call.transcript.length === 0)
     ).length;
-    
-    const pending = totalCalls - completed - failed;
+
+    const pending = totalCalls - completed - failed - (campaign?.skippedCalls || 0);
 
     return {
       totalCalls,
@@ -322,7 +322,17 @@ const CampaignReportDetail = () => {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap">
           <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
-          Blocked
+          Compliance
+        </span>
+      );
+    }
+
+    // DND - ORANGE
+    if (failureReason.toLowerCase().includes('dnd')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap">
+          <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
+          DND
         </span>
       );
     }
@@ -356,8 +366,8 @@ const CampaignReportDetail = () => {
   };
 
   const getInteractionBadge = (contact) => {
-    const hasInteraction = contact.hasInteraction !== undefined 
-      ? contact.hasInteraction 
+    const hasInteraction = contact.hasInteraction !== undefined
+      ? contact.hasInteraction
       : (contact.transcript && contact.transcript.length > 0);
     if (hasInteraction) {
       return (
@@ -420,75 +430,72 @@ const CampaignReportDetail = () => {
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-zinc-200">
-          <button
-            onClick={() => setActiveTab('overview')}
-          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 ${
-              activeTab === 'overview'
-              ? 'border-emerald-500 text-emerald-600'
-              : 'border-transparent text-zinc-500 hover:text-zinc-700'
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 ${activeTab === 'overview'
+            ? 'border-emerald-500 text-emerald-600'
+            : 'border-transparent text-zinc-500 hover:text-zinc-700'
             }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('analytics')}
-          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 ${
-              activeTab === 'analytics'
-              ? 'border-emerald-500 text-emerald-600'
-              : 'border-transparent text-zinc-500 hover:text-zinc-700'
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab('analytics')}
+          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 ${activeTab === 'analytics'
+            ? 'border-emerald-500 text-emerald-600'
+            : 'border-transparent text-zinc-500 hover:text-zinc-700'
             }`}
-          >
-            Analytics
-          </button>
+        >
+          Analytics
+        </button>
       </div>
 
       {/* Campaign Header */}
-          <div>
+      <div>
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700 mb-3">
           <FaPhone className="h-3 w-3" />
           <span>Campaign details</span>
         </div>
         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-zinc-900">
-              Campaign: {campaign.name}
-            </h1>
+          Campaign: {campaign.name}
+        </h1>
         <div className="flex items-center gap-3 mt-2">
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-              campaign.status === 'completed' 
-              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-              : campaign.status === 'active' || campaign.status === 'running'
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${campaign.status === 'completed'
+            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+            : campaign.status === 'active' || campaign.status === 'running'
               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
               : campaign.status === 'paused'
-              ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
-              : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
+                ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
             }`}>
             <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
-              {campaign.status || 'unknown'}
-            </span>
-          </div>
+            {campaign.status || 'unknown'}
+          </span>
         </div>
+      </div>
 
       {/* Campaign Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="glass-card p-4">
           <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500 mb-1">Number</p>
           <p className="text-sm font-semibold text-zinc-900">{campaign.phoneId?.number || 'N/A'}</p>
-          </div>
+        </div>
         <div className="glass-card p-4">
           <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500 mb-1">Created By</p>
           <p className="text-sm font-semibold text-zinc-900">{campaign.userId?.name || campaign.userId?.email || 'N/A'}</p>
-          </div>
+        </div>
         <div className="glass-card p-4">
           <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500 mb-1">Created On</p>
           <p className="text-sm font-semibold text-zinc-900">
-              {campaign.createdAt ? new Date(campaign.createdAt).toLocaleString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-              }).replace(',', ' at') : 'N/A'}
-            </p>
+            {campaign.createdAt ? new Date(campaign.createdAt).toLocaleString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            }).replace(',', ' at') : 'N/A'}
+          </p>
         </div>
       </div>
 
@@ -505,7 +512,7 @@ const CampaignReportDetail = () => {
                   </div>
                   <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white">
                     <FaPhone className="h-4 w-4 text-zinc-500" />
-                </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -519,7 +526,7 @@ const CampaignReportDetail = () => {
                   </div>
                   <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white">
                     <FaPlay className="h-4 w-4 text-zinc-500" />
-                </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -533,7 +540,7 @@ const CampaignReportDetail = () => {
                       <div className="text-xl font-semibold tabular-nums text-zinc-900">{calculatedStats.pickedUp}</div>
                       <span className="text-sm font-medium text-emerald-500">{calculatedStats.pickupRate}%</span>
                     </div>
-                </div>
+                  </div>
                   <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-100 to-teal-100">
                     <FaCheckCircle className="h-4 w-4 text-emerald-500" />
                   </div>
@@ -553,7 +560,7 @@ const CampaignReportDetail = () => {
                   </div>
                   <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-100 to-teal-100">
                     <FaCheckCircle className="h-4 w-4 text-emerald-500" />
-                </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -567,7 +574,7 @@ const CampaignReportDetail = () => {
                   </div>
                   <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white">
                     <FaCircle className="h-4 w-4 text-zinc-500" />
-                </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -581,7 +588,7 @@ const CampaignReportDetail = () => {
                   </div>
                   <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white">
                     <FaTimesCircle className="h-4 w-4 text-zinc-500" />
-                </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -612,12 +619,12 @@ const CampaignReportDetail = () => {
                     {phoneFilter.length === 0
                       ? 'All Phone Numbers'
                       : phoneFilter.length === 1
-                      ? phoneFilter[0]
-                      : `${phoneFilter.length} selected`}
+                        ? phoneFilter[0]
+                        : `${phoneFilter.length} selected`}
                   </span>
                   <FaChevronDown className={`ml-2 transition-transform ${phoneFilterOpen ? 'rotate-180' : ''}`} size={12} />
                 </button>
-                
+
                 {phoneFilterOpen && (
                   <div className="absolute w-full mt-1 glass-card border border-zinc-200 rounded-lg shadow-xl max-h-96 overflow-hidden flex flex-col" style={{ zIndex: 1001 }}>
                     {/* Search Bar */}
@@ -820,16 +827,16 @@ const CampaignReportDetail = () => {
                           {contact.failureReason ? getFailureReasonBadge(contact.failureReason) : <span className="text-xs text-zinc-400">-</span>}
                         </td>
                         <td className="px-4 py-3 text-xs text-zinc-700">
-                          {contact.duration 
-                            ? formatDuration(contact.duration) 
-                            : recordingDurations[contact._id] 
-                              ? formatDuration(recordingDurations[contact._id]) 
+                          {contact.duration
+                            ? formatDuration(contact.duration)
+                            : recordingDurations[contact._id]
+                              ? formatDuration(recordingDurations[contact._id])
                               : '-'}
                         </td>
                         <td className="px-4 py-3">
                           {contact.recordingUrl ? (
-                            <audio 
-                              controls 
+                            <audio
+                              controls
                               className="h-8 max-w-full"
                               onLoadedMetadata={(e) => {
                                 // Use recording duration as fallback if call log duration is not available
