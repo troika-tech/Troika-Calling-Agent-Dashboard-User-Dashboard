@@ -392,14 +392,14 @@ export const generateCampaigns = () => {
     if (status === 'completed') {
       processed = totalContacts; // 100% progress
 
-      // Some campaigns have 0 failures (50%), others have minimal failures (1-3%)
+      // Some campaigns have 0 failures (70%), others have minimal failures (1-3%)
       const failureRand = seededRandom(seed * 6);
-      if (failureRand < 0.5) {
-        // 50% campaigns have 0 failed calls (perfect success)
+      if (failureRand < 0.7) {
+        // 70% campaigns have 0 failed calls (perfect success)
         failedCalls = 0;
         completedCalls = totalContacts;
       } else {
-        // 50% campaigns have 1-3% failed calls
+        // 30% campaigns have 1-3% failed calls
         failedCalls = Math.floor(totalContacts * (0.01 + seededRandom(seed * 7) * 0.02));
         completedCalls = totalContacts - failedCalls;
       }
@@ -411,10 +411,12 @@ export const generateCampaigns = () => {
 
       // Paused campaigns also have minimal failures
       const failureRand = seededRandom(seed * 6);
-      if (failureRand < 0.5) {
+      if (failureRand < 0.7) {
+        // 70% have 0 failed calls
         failedCalls = 0;
         completedCalls = processed;
       } else {
+        // 30% have 1-3% failed calls
         failedCalls = Math.floor(processed * (0.01 + seededRandom(seed * 7) * 0.02));
         completedCalls = processed - failedCalls;
       }
