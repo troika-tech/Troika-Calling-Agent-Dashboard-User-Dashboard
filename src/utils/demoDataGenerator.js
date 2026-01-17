@@ -372,7 +372,6 @@ export const generateCampaigns = () => {
     const template = CAMPAIGN_TEMPLATES[i % CAMPAIGN_TEMPLATES.length];
     const campaignId = `camp-${i + 1}`;
     const totalCalls = Math.floor(config.demo.totalCalls / 43) + (i % 5); // Add variance
-    const completedCalls = Math.floor(totalCalls * (config.demo.completionRate / 100));
 
     const seed = i + 54321;
     const statusRand = seededRandom(seed);
@@ -389,16 +388,21 @@ export const generateCampaigns = () => {
     const totalContacts = 1000 + Math.floor(seededRandom(seed * 2) * 4000);
 
     // Completed campaigns: 100% progress, Paused campaigns: 40-70% progress
-    let processed, completed, failed;
+    let processed, completed, failed, completedCalls, failedCalls;
     if (status === 'completed') {
       processed = totalContacts; // 100% progress
       completed = Math.floor(processed * (demo.completionRate / 100));
       failed = processed - completed;
+      // For UI progress calculation: completedCalls + failedCalls should equal totalContacts
+      completedCalls = completed;
+      failedCalls = failed;
     } else {
       // Paused campaigns have partial progress (40-70%)
       processed = Math.floor(totalContacts * (0.4 + seededRandom(seed * 3) * 0.3));
       completed = Math.floor(processed * (demo.completionRate / 100));
       failed = processed - completed;
+      completedCalls = completed;
+      failedCalls = failed;
     }
 
     // Distribute campaigns across Nov 2025 - Jan 17 2026
@@ -415,6 +419,9 @@ export const generateCampaigns = () => {
       phoneId: `phone-${(seed % 3) + 1}`,
       totalCalls,
       completedCalls,
+      failedCalls,
+      skippedCalls: 0,
+      voicemailCalls: 0,
       successRate: config.demo.completionRate,
       createdAt: campaignDate.toISOString(),
       totalContacts: totalContacts,
