@@ -1125,9 +1125,15 @@ export const schedulingAPI = {
           agentId: { name: 'Sales Agent' }
         };
 
+        // Generate random-looking phone number using multiple primes
+        const prefix = [98, 99, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85][(i * 6997) % 15];
+        const part1 = ((i * 7919) % 10000).toString().padStart(4, '0');
+        const part2 = ((i * 5237 + 8765) % 10000).toString().padStart(4, '0');
+        const phoneNumber = `+91${prefix}${part1}${part2}`;
+
         return {
           _id: `sched-${i + 1}`,
-          phoneNumber: `+9198765${String(43210 + i).slice(-5)}`,
+          phoneNumber: phoneNumber,
           agentId: {
             _id: campaign._id || `camp-${i + 1}`,
             name: (campaign.agentId && campaign.agentId.name) || 'Sales Agent'

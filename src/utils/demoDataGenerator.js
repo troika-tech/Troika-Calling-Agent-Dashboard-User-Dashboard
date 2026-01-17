@@ -111,9 +111,15 @@ const TRANSCRIPT_TEMPLATES = {
 
 // Generate random Indian phone number
 const generatePhoneNumber = (seed) => {
-  const prefix = [98, 99, 97, 96, 95, 94, 93, 92, 91, 90][seed % 10];
-  const number = 10000000 + (seed * 7919) % 90000000; // Use prime for distribution
-  return `+91${prefix}${String(number).padStart(8, '0').slice(0, 8)}`;
+  // Use multiple primes for very random-looking distribution
+  const prefixes = [98, 99, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 84, 83, 82, 81, 80];
+  const prefix = prefixes[(seed * 6997) % prefixes.length];
+
+  // Mix multiple primes for maximum randomness while staying deterministic
+  const part1 = ((seed * 7919) % 10000).toString().padStart(4, '0');
+  const part2 = ((seed * 5237 + 1234) % 10000).toString().padStart(4, '0');
+
+  return `+91${prefix}${part1}${part2}`;
 };
 
 // Deterministic pseudo-random using seed
