@@ -1107,9 +1107,9 @@ export const schedulingAPI = {
         else if (rand < 95) status = 'pending';
         else status = 'failed';
 
-        // Distribute from November 2024 to January 2026 (3 months period)
-        // Start date: Nov 1, 2024
-        const startDate = new Date('2024-11-01');
+        // Distribute from November 2025 to January 2026 (3 months period)
+        // Start date: Nov 1, 2025
+        const startDate = new Date('2025-11-01');
         const endDate = new Date('2026-01-17');
         const timeRange = endDate - startDate;
         const randomOffset = Math.floor((i / 47) * timeRange);

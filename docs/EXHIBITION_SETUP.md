@@ -38,7 +38,7 @@ The dashboard showcases:
 - **Avg Call Duration**: 2m 22s
 - **Credit Balance**: 248,750
 - **Leads**: 487
-- **Scheduled Calls**: 438 (Nov 2024 - Jan 2026)
+- **Scheduled Calls**: 438 (Nov 2025 - Jan 2026)
   - 307 completed (70%)
   - 66 cancelled (15%)
   - 41 pending (10%)
