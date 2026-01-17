@@ -1110,18 +1110,22 @@ export const schedulingAPI = {
         scheduledTime.setDate(scheduledTime.getDate() + daysAhead);
         scheduledTime.setHours(hoursAhead, i % 60, 0, 0);
 
-        const campaign = campaigns[i % campaigns.length];
+        const campaign = campaigns[i % campaigns.length] || {
+          _id: `camp-${i + 1}`,
+          name: 'Default Campaign',
+          agentId: { name: 'Sales Agent' }
+        };
 
         return {
           _id: `sched-${i + 1}`,
           phoneNumber: `+9198765${String(43210 + i).slice(-5)}`,
           agentId: {
-            _id: campaign._id,
-            name: campaign.agentId.name
+            _id: campaign._id || `camp-${i + 1}`,
+            name: (campaign.agentId && campaign.agentId.name) || 'Sales Agent'
           },
           campaignId: {
-            _id: campaign._id,
-            name: campaign.name
+            _id: campaign._id || `camp-${i + 1}`,
+            name: campaign.name || 'Default Campaign'
           },
           userId,
           scheduledFor: scheduledTime.toISOString(),
