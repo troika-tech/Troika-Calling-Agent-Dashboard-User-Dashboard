@@ -231,15 +231,43 @@ export const callAPI = {
   getLeads: async (params = {}) => {
     if (DEMO_MODE) {
       await mockDelay(300);
-      // Return empty array in demo mode - leads should come from backend
+
+      const page = params.page || 1;
+      const limit = params.limit || 50;
+
+      // Generate leads from completed/user-ended calls (about 500 total)
+      const leadIndices = Array.from({ length: 500 }, (_, i) => i * 240); // Every 240th call is a lead
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const pageIndices = leadIndices.slice(startIndex, endIndex);
+
+      const leads = pageIndices.map(index => {
+        const call = demoDataGenerator.generateCall(index, config.demo.totalCalls, config);
+
+        // Add lead-specific fields
+        return {
+          ...call,
+          leadScore: 70 + (index % 30), // Score 70-99
+          actionStatus: index % 3 === 0 ? 'completed' : 'pending',
+          notes: index % 3 === 0 ? 'Follow-up completed' : 'Interested in premium plan',
+          followUpDate: new Date(Date.now() + (index % 7) * 86400000).toISOString(),
+        };
+      });
+
+      // Apply filters
+      let filtered = leads;
+      if (params.actionStatus) {
+        filtered = filtered.filter(lead => lead.actionStatus === params.actionStatus);
+      }
+
       return {
         data: {
-          calls: [],
+          calls: filtered,
           pagination: {
-            page: params.page || 1,
-            limit: params.limit || 50,
-            total: 0,
-            pages: 0
+            page,
+            limit,
+            total: 500,
+            pages: Math.ceil(500 / limit)
           }
         }
       };
@@ -1068,17 +1096,32 @@ export const schedulingAPI = {
   getScheduledCalls: async (userId, filters = {}) => {
     if (DEMO_MODE) {
       await mockDelay(250);
-      const mockScheduledCalls = Array.from({ length: 15 }).map((_, i) => {
+
+      const campaigns = demoDataGenerator.generateCampaigns();
+      const mockScheduledCalls = Array.from({ length: 50 }).map((_, i) => {
         const statuses = ['pending', 'processing', 'completed', 'cancelled', 'failed'];
-        const status = statuses[i % 5];
-        const scheduledTime = new Date(Date.now() + (i * 3600000)); // Staggered by 1 hour
+        // More pending calls for exhibition (60% pending)
+        const status = i < 30 ? 'pending' : statuses[(i - 30) % 5];
+
+        // Distribute over next 7 days
+        const daysAhead = (i % 7) + 1;
+        const hoursAhead = 9 + (i % 8); // Business hours 9-17
+        const scheduledTime = new Date();
+        scheduledTime.setDate(scheduledTime.getDate() + daysAhead);
+        scheduledTime.setHours(hoursAhead, i % 60, 0, 0);
+
+        const campaign = campaigns[i % campaigns.length];
 
         return {
           _id: `sched-${i + 1}`,
-          phoneNumber: `+9198765432${i % 10}`,
+          phoneNumber: `+9198765${String(43210 + i).slice(-5)}`,
           agentId: {
-            _id: `agent-${i % 3}`,
-            name: ['Sales Agent', 'Support Agent', 'Follow-up Agent'][i % 3]
+            _id: campaign._id,
+            name: campaign.agentId.name
+          },
+          campaignId: {
+            _id: campaign._id,
+            name: campaign.name
           },
           userId,
           scheduledFor: scheduledTime.toISOString(),
@@ -1091,14 +1134,14 @@ export const schedulingAPI = {
             timezone: 'Asia/Kolkata',
             daysOfWeek: [1, 2, 3, 4, 5]
           } : null,
-          recurring: i % 4 === 0 ? {
-            frequency: 'daily',
+          recurring: i % 5 === 0 ? {
+            frequency: ['daily', 'weekly', 'monthly'][i % 3],
             interval: 1,
             currentOccurrence: 1
           } : null,
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          createdAt: new Date(Date.now() - (i * 3600000)).toISOString(),
           isPending: status === 'pending',
-          isRecurring: i % 4 === 0,
+          isRecurring: i % 5 === 0,
           canCancel: status === 'pending'
         };
       });
@@ -1110,6 +1153,9 @@ export const schedulingAPI = {
       }
       if (filters.agentId) {
         filtered = filtered.filter(call => call.agentId._id === filters.agentId);
+      }
+      if (filters.limit) {
+        filtered = filtered.slice(0, filters.limit);
       }
 
       return {
@@ -1176,21 +1222,15 @@ export const schedulingAPI = {
         success: true,
         data: {
           scheduler: {
-            totalScheduled: 45,
-            pending: 12,
-            processing: 2,
-            completed: 28,
-            cancelled: 2,
-            failed: 1
-          },
-          queue: {
-            waiting: 8,
-            active: 2,
-            completed: 28,
-            failed: 1,
-            delayed: 10,
-            paused: 0,
-            total: 49
+            totalScheduled: 450,
+            pending: 280,
+            processing: 20,
+            completed: 120,
+            cancelled: 20,
+            failed: 10,
+            todayScheduled: 35,
+            upcomingToday: 15,
+            recurringCalls: 90
           }
         }
       };
