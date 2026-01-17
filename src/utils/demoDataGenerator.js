@@ -391,18 +391,35 @@ export const generateCampaigns = () => {
     let processed, completed, failed, completedCalls, failedCalls;
     if (status === 'completed') {
       processed = totalContacts; // 100% progress
-      completed = Math.floor(processed * (demo.completionRate / 100));
-      failed = processed - completed;
-      // For UI progress calculation: completedCalls + failedCalls should equal totalContacts
-      completedCalls = completed;
-      failedCalls = failed;
+
+      // Some campaigns have 0 failures (50%), others have minimal failures (1-3%)
+      const failureRand = seededRandom(seed * 6);
+      if (failureRand < 0.5) {
+        // 50% campaigns have 0 failed calls (perfect success)
+        failedCalls = 0;
+        completedCalls = totalContacts;
+      } else {
+        // 50% campaigns have 1-3% failed calls
+        failedCalls = Math.floor(totalContacts * (0.01 + seededRandom(seed * 7) * 0.02));
+        completedCalls = totalContacts - failedCalls;
+      }
+      completed = completedCalls;
+      failed = failedCalls;
     } else {
       // Paused campaigns have partial progress (40-70%)
       processed = Math.floor(totalContacts * (0.4 + seededRandom(seed * 3) * 0.3));
-      completed = Math.floor(processed * (demo.completionRate / 100));
-      failed = processed - completed;
-      completedCalls = completed;
-      failedCalls = failed;
+
+      // Paused campaigns also have minimal failures
+      const failureRand = seededRandom(seed * 6);
+      if (failureRand < 0.5) {
+        failedCalls = 0;
+        completedCalls = processed;
+      } else {
+        failedCalls = Math.floor(processed * (0.01 + seededRandom(seed * 7) * 0.02));
+        completedCalls = processed - failedCalls;
+      }
+      completed = completedCalls;
+      failed = failedCalls;
     }
 
     // Distribute campaigns across Nov 2025 - Jan 17 2026
