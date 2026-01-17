@@ -223,6 +223,9 @@ export const generateCall = (index, campaignId, campaignName, campaignType) => {
     }
   }
 
+  // Realistic direction distribution: 75% outbound, 25% inbound
+  const direction = (index * 7919) % 100 < 75 ? 'outbound' : 'inbound';
+
   const call = {
     _id: `call-${index + 1}`,
     callSid: `CA${1000000 + index}`,
@@ -238,7 +241,7 @@ export const generateCall = (index, campaignId, campaignName, campaignType) => {
     startedAt: callTime.toISOString(),
     startTime: callTime.toISOString(),
     endedAt: endTime.toISOString(),
-    direction: 'outbound',
+    direction: direction,
     campaignId: campaignId,
     campaignName: campaignName,
     agentName: `AI Agent ${(seed % 5) + 1}`,
@@ -343,10 +346,15 @@ export const generateCalls = (params = {}) => {
 
 // Generate campaigns
 export const generateCampaigns = () => {
-  const campaigns = [];
+  // Generate 43 campaigns (some templates used multiple times)
+  const campaignList = [];
 
-  for (let i = 0; i < demo.totalCampaigns; i++) {
+  for (let i = 0; i < 43; i++) {
     const template = CAMPAIGN_TEMPLATES[i % CAMPAIGN_TEMPLATES.length];
+    const campaignId = `camp-${i + 1}`;
+    const totalCalls = Math.floor(config.demo.totalCalls / 43) + (i % 5); // Add variance
+    const completedCalls = Math.floor(totalCalls * (config.demo.completionRate / 100));
+
     const seed = i + 54321;
     const statusRand = seededRandom(seed);
 
@@ -367,15 +375,19 @@ export const generateCampaigns = () => {
     const completed = Math.floor(processed * (demo.completionRate / 100));
     const failed = processed - completed;
 
-    campaigns.push({
-      _id: `campaign-${i + 1}`,
-      name: `${template.name} ${i > 9 ? `(Batch ${Math.floor(i / 10)})` : ''}`.trim(),
+    campaignList.push({
+      _id: campaignId,
+      id: campaignId,
+      name: i < CAMPAIGN_TEMPLATES.length ? template.name : `${template.name} - Batch ${Math.floor(i / CAMPAIGN_TEMPLATES.length) + 1}`,
       type: template.type,
-      status: status,
+      status: i < 5 ? 'active' : status,
       priority: template.priority,
-      agentId: `agent-${(seed % 5) + 1}`,
+      agentId: { name: `AI Agent ${(seed % 5) + 1}` },
       phoneId: `phone-${(seed % 3) + 1}`,
-      createdAt: new Date(Date.now() - (demo.totalCampaigns - i) * 86400000 * 2).toISOString(),
+      totalCalls,
+      completedCalls,
+      successRate: config.demo.completionRate,
+      createdAt: new Date(Date.now() - (43 - i) * 7 * 86400000).toISOString(),
       totalContacts: totalContacts,
       processed: processed,
       remaining: totalContacts - processed,
@@ -393,7 +405,7 @@ export const generateCampaigns = () => {
     });
   }
 
-  return { data: campaigns };
+  return { data: campaignList };
 };
 
 // Generate dashboard analytics
@@ -422,8 +434,8 @@ export const generateDashboardAnalytics = () => {
         failed: failedCalls,
       },
       byDirection: {
-        outbound: demo.totalCalls,
-        inbound: 0,
+        outbound: Math.floor(demo.totalCalls * 0.75),
+        inbound: Math.floor(demo.totalCalls * 0.25),
       },
     }
   };

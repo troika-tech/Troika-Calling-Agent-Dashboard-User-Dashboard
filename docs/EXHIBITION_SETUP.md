@@ -31,14 +31,15 @@
 
 The dashboard showcases:
 
-- **Total Calls**: 120,000 over 3 months
+- **Total Calls**: 119,847 over 3 months
 - **Pickup Rate**: 78% (configurable)
 - **Completion Rate**: 67% (configurable)
-- **Campaigns**: 45 across 10 templates
+- **Campaigns**: 43 across 10 templates
 - **Avg Call Duration**: 2m 22s
-- **Credit Balance**: 250,000
-- **Leads**: 500
-- **Scheduled Calls**: 450
+- **Credit Balance**: 248,750
+- **Leads**: 487
+- **Scheduled Calls**: 438
+- **Call Direction**: 75% outbound, 25% inbound
 
 ---
 
@@ -75,13 +76,14 @@ The dashboard showcases:
 
 ### Talking Points
 
-- "120,000 calls handled by AI in just 3 months"
+- "119,847 calls handled by AI in just 3 months"
 - "78% pickup rate - better than human agents"
 - "67% completion rate shows engagement"
 - "Real-time transcription in multiple languages"
 - "Cost-effective: ₹1.20 per call average"
-- "500 qualified leads generated automatically"
-- "450 calls scheduled for follow-up"
+- "487 qualified leads generated automatically"
+- "438 calls scheduled for follow-up"
+- "Handles both outbound and inbound calls efficiently"
 
 ---
 
@@ -97,7 +99,7 @@ The dashboard showcases:
 ## Troubleshooting
 
 **Issue**: Slow page loads
-- **Solution**: Reduce `demo.totalCalls` in config.js to 50,000
+- **Solution**: Reduce `demo.totalCalls` in config.js to 50,000 or lower
 
 **Issue**: Recordings don't play
 - **Solution**: Check file paths in `src/config/realRecordings.js`

@@ -235,8 +235,8 @@ export const callAPI = {
       const page = params.page || 1;
       const limit = params.limit || 50;
 
-      // Generate leads from completed/user-ended calls (about 500 total)
-      const leadIndices = Array.from({ length: 500 }, (_, i) => i * 240); // Every 240th call is a lead
+      // Generate leads from completed/user-ended calls (about 487 total)
+      const leadIndices = Array.from({ length: 487 }, (_, i) => i * 246); // Every 246th call is a lead
       const startIndex = (page - 1) * limit;
       const endIndex = startIndex + limit;
       const pageIndices = leadIndices.slice(startIndex, endIndex);
@@ -266,8 +266,8 @@ export const callAPI = {
           pagination: {
             page,
             limit,
-            total: 500,
-            pages: Math.ceil(500 / limit)
+            total: 487,
+            pages: Math.ceil(487 / limit)
           }
         }
       };
@@ -1098,7 +1098,7 @@ export const schedulingAPI = {
       await mockDelay(250);
 
       const campaigns = demoDataGenerator.generateCampaigns();
-      const mockScheduledCalls = Array.from({ length: 50 }).map((_, i) => {
+      const mockScheduledCalls = Array.from({ length: 47 }).map((_, i) => {
         const statuses = ['pending', 'processing', 'completed', 'cancelled', 'failed'];
         // More pending calls for exhibition (60% pending)
         const status = i < 30 ? 'pending' : statuses[(i - 30) % 5];
@@ -1222,15 +1222,15 @@ export const schedulingAPI = {
         success: true,
         data: {
           scheduler: {
-            totalScheduled: 450,
-            pending: 280,
-            processing: 20,
-            completed: 120,
-            cancelled: 20,
-            failed: 10,
-            todayScheduled: 35,
-            upcomingToday: 15,
-            recurringCalls: 90
+            totalScheduled: 438,      // Changed from 450
+            pending: 267,             // Changed from 280
+            processing: 18,           // Changed from 20
+            completed: 126,           // Changed from 120
+            cancelled: 19,            // Changed from 20
+            failed: 8,                // Changed from 10
+            todayScheduled: 33,       // Changed from 35
+            upcomingToday: 14,        // Changed from 15
+            recurringCalls: 87        // Changed from 90
           }
         }
       };

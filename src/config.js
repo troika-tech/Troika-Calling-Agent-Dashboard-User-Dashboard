@@ -76,23 +76,23 @@ const config = {
   // Demo Mode Configuration
   demoMode: true, // Change to false to use real API
   demo: {
-    // Exhibition stats (impressive numbers for showcase)
-    totalCalls: 120000,
-    totalCampaigns: 45,
-    realRecordingsCount: 40, // First 40 calls will have slots for real recordings
+    // Exhibition stats (realistic numbers for showcase)
+    totalCalls: 119847,        // Changed from 120000
+    totalCampaigns: 43,         // Changed from 45
+    realRecordingsCount: 40,    // Keep this
 
     // Performance metrics (optimized for exhibition impression)
-    pickupRate: 78, // 78% pickup rate
-    completionRate: 67, // 67% completion rate
-    avgDuration: 142, // seconds
+    pickupRate: 78,             // Keep
+    completionRate: 67,         // Keep
+    avgDuration: 142,           // Keep
 
     // Cost savings showcase
-    creditBalance: 250000,
-    avgCallCost: 1.2, // rupees
+    creditBalance: 248750,      // Changed from 250000
+    avgCallCost: 1.2,          // Keep
 
     // Time period for demo data
-    dataStartDate: '2024-10-17', // 3 months ago from today
-    dataEndDate: '2026-01-17', // today
+    dataStartDate: '2024-10-17', // Keep
+    dataEndDate: '2026-01-17',   // Keep
   },
   
   // Feature Flags
