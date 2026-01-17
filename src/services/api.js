@@ -1147,14 +1147,8 @@ export const schedulingAPI = {
             timezone: 'Asia/Kolkata',
             daysOfWeek: [1, 2, 3, 4, 5]
           } : null,
-          recurring: i % 5 === 0 ? {
-            frequency: ['daily', 'weekly', 'monthly'][i % 3],
-            interval: 1,
-            currentOccurrence: 1
-          } : null,
           createdAt: new Date(Date.now() - (i * 3600000)).toISOString(),
           isPending: status === 'pending',
-          isRecurring: i % 5 === 0,
           canCancel: status === 'pending'
         };
       });
@@ -1242,8 +1236,7 @@ export const schedulingAPI = {
             cancelled: 66,            // ~15% cancelled
             failed: 16,               // ~5% failed
             todayScheduled: 3,        // Few scheduled for today
-            upcomingToday: 2,         // Few upcoming today
-            recurringCalls: 87        // Changed from 90
+            upcomingToday: 2          // Few upcoming today        // Changed from 90
           }
         }
       };
