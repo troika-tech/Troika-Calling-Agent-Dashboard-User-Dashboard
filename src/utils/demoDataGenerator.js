@@ -155,15 +155,9 @@ const getCallDuration = (status, seed) => {
   } else if (status === 'user-ended') {
     // User ended early: 10-60 seconds - PICKED UP
     return Math.floor(10 + seededRandom(seed * 2) * 50);
-  } else if (status === 'no-answer') {
-    // Rang but no pickup: 0-8 seconds (ring time only) - NOT PICKED UP
-    return Math.floor(seededRandom(seed * 3) * 8);
-  } else if (status === 'busy') {
-    // Busy signal: 0-3 seconds - NOT PICKED UP
-    return Math.floor(seededRandom(seed * 4) * 3);
   } else {
-    // Failed: 0-2 seconds (connection attempt only) - NOT PICKED UP
-    return Math.floor(seededRandom(seed * 5) * 2);
+    // Not picked up (no-answer, busy, failed): 0 duration
+    return 0;
   }
 };
 
