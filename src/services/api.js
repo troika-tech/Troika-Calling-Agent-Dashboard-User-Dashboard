@@ -927,7 +927,7 @@ export const analyticsAPI = {
     if (DEMO_MODE) {
       await mockDelay(50);
       return {
-        data: { count: 1842 }
+        data: { count: config.demo.totalCalls }
       };
     }
     const response = await api.get('/api/v1/analytics/calls/count', {
@@ -938,16 +938,16 @@ export const analyticsAPI = {
 
   // Get overview stats for Analytics page cards
   getOverview: async () => {
-    // if (DEMO_MODE) {
-    //   await mockDelay(100);
-    //   return {
-    //     data: {
-    //       totalCalls: 1842,
-    //       totalCampaigns: 15,
-    //       avgDuration: 96
-    //     }
-    //   };
-    // }
+    if (DEMO_MODE) {
+      await mockDelay(100);
+      return {
+        data: {
+          totalCalls: config.demo.totalCalls,
+          totalCampaigns: config.demo.totalCampaigns,
+          avgDuration: config.demo.avgDuration
+        }
+      };
+    }
     const response = await api.get('/api/v1/analytics/overview');
     return response.data;
   },
@@ -956,27 +956,7 @@ export const analyticsAPI = {
   getCallChartData: async (userId) => {
     if (DEMO_MODE) {
       await mockDelay(100);
-      // Generate mock data for last 7 days
-      const today = new Date();
-      const mockData = [];
-      for (let i = 7; i >= 1; i--) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
-        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const day = dayNames[date.getDay()];
-        const dateLabel = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
-        mockData.push({
-          date: date.toISOString().split('T')[0],
-          day: day,
-          dateLabel: dateLabel,
-          calls: Math.floor(Math.random() * 200) + 10
-        });
-      }
-      // Return data object directly to match real API response structure
-      return {
-        chartData: mockData,
-        totalCalls: mockData.reduce((sum, d) => sum + d.calls, 0)
-      };
+      return demoDataGenerator.generateWeeklyChartData();
     }
     // Use longer timeout for chart data endpoint (60 seconds) as it may process large datasets
     const response = await api.get('/api/v1/analytics/calls/chart-data', {
@@ -992,9 +972,10 @@ export const analyticsAPI = {
   getCharts: async () => {
     if (DEMO_MODE) {
       await mockDelay(100);
+      const analytics = demoDataGenerator.generateDashboardAnalytics();
       return {
-        direction: { inbound: 624, outbound: 1218 },
-        status: { completed: 1423, failed: 219, 'in-progress': 18, initiated: 82 }
+        direction: analytics.data.byDirection,
+        status: analytics.data.byStatus
       };
     }
     const response = await api.get('/api/v1/analytics/charts');
@@ -1006,40 +987,7 @@ export const analyticsAPI = {
     // ALWAYS check DEMO_MODE first - return immediately to avoid timeout
     if (DEMO_MODE) {
       await mockDelay(100); // Reduced delay for faster loading
-      // Generate time labels for the day
-      const hours = ['9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM'];
-      const callValues = [42, 58, 75, 88, 132, 164, 172, 160, 140, 118];
-      
-      return {
-        data: {
-          totalCalls: 1842,
-          completedCalls: 1423,
-          failedCalls: 219,
-          inProgressCalls: 18,
-          successRate: 77.3,
-          averageDuration: 96,
-          totalDuration: 176832,
-          // Format for charts - array of { time, calls } objects
-          callTrends: hours.map((time, i) => ({
-            time,
-            calls: callValues[i] || 0
-          })),
-          callsOverTime: {
-            labels: hours,
-            data: callValues
-          },
-          byStatus: {
-            completed: 1423,
-            failed: 219,
-            'no-answer': 120,
-            busy: 80,
-          },
-          byDirection: {
-            inbound: 624,
-            outbound: 1218,
-          },
-        }
-      };
+      return demoDataGenerator.generateDashboardAnalytics(userId, timeRange);
     }
     // Only make real API call if DEMO_MODE is false
     const params = { userId };
