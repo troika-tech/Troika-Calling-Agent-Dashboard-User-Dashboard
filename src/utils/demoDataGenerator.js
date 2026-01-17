@@ -8,6 +8,34 @@ import { getRealRecordingUrl } from '../config/realRecordings';
 
 const { demo } = config;
 
+// Cache for generated data to improve performance
+const callCache = new Map();
+const CACHE_SIZE = 1000; // Cache last 1000 calls
+
+/**
+ * Get or generate call with caching
+ */
+const getCachedCall = (index, totalCalls, config) => {
+  const cacheKey = `${index}-${config.demo.totalCalls}`;
+
+  if (callCache.has(cacheKey)) {
+    return callCache.get(cacheKey);
+  }
+
+  const campaignIndex = index % config.demo.totalCampaigns;
+  const template = CAMPAIGN_TEMPLATES[campaignIndex % CAMPAIGN_TEMPLATES.length];
+  const call = generateCall(index, `campaign-${campaignIndex + 1}`, template.name, template.type);
+
+  // Maintain cache size limit
+  if (callCache.size >= CACHE_SIZE) {
+    const firstKey = callCache.keys().next().value;
+    callCache.delete(firstKey);
+  }
+
+  callCache.set(cacheKey, call);
+  return call;
+};
+
 // Campaign templates with different types and purposes
 const CAMPAIGN_TEMPLATES = [
   { name: 'Diwali Festival Sale - Warm Leads', type: 'sales', priority: 'high' },
@@ -277,9 +305,7 @@ export const generateCalls = (params = {}) => {
   if (params.phoneNumbers && Array.isArray(params.phoneNumbers) && params.phoneNumbers.length > 0) {
     // Generate calls first, then filter by phone numbers
     const tempCalls = filteredIndices.map(i => {
-      const campaignIndex = i % demo.totalCampaigns;
-      const template = CAMPAIGN_TEMPLATES[campaignIndex % CAMPAIGN_TEMPLATES.length];
-      return generateCall(i, `campaign-${campaignIndex + 1}`, template.name, template.type);
+      return getCachedCall(i, total, config);
     });
 
     filteredIndices = tempCalls
@@ -295,9 +321,7 @@ export const generateCalls = (params = {}) => {
 
   // Generate calls for this page
   const calls = pageIndices.map(i => {
-    const campaignIndex = i % demo.totalCampaigns;
-    const template = CAMPAIGN_TEMPLATES[campaignIndex % CAMPAIGN_TEMPLATES.length];
-    return generateCall(i, `campaign-${campaignIndex + 1}`, template.name, template.type);
+    return getCachedCall(i, total, config);
   });
 
   return {
@@ -439,6 +463,7 @@ export const generateWeeklyChartData = () => {
 
 export default {
   generateCall,
+  getCachedCall,
   generateCalls,
   generateCampaigns,
   generateDashboardAnalytics,
