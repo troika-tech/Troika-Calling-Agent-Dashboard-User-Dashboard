@@ -387,9 +387,19 @@ export const generateCampaigns = () => {
 
     // Calculate campaign stats
     const totalContacts = 1000 + Math.floor(seededRandom(seed * 2) * 4000);
-    const processed = status === 'completed' ? totalContacts : Math.floor(totalContacts * seededRandom(seed * 3) * 0.9);
-    const completed = Math.floor(processed * (demo.completionRate / 100));
-    const failed = processed - completed;
+
+    // Completed campaigns: 100% progress, Paused campaigns: 40-70% progress
+    let processed, completed, failed;
+    if (status === 'completed') {
+      processed = totalContacts; // 100% progress
+      completed = Math.floor(processed * (demo.completionRate / 100));
+      failed = processed - completed;
+    } else {
+      // Paused campaigns have partial progress (40-70%)
+      processed = Math.floor(totalContacts * (0.4 + seededRandom(seed * 3) * 0.3));
+      completed = Math.floor(processed * (demo.completionRate / 100));
+      failed = processed - completed;
+    }
 
     // Distribute campaigns across Nov 2025 - Jan 17 2026
     const campaignDate = new Date(startDate + (i / 42) * (endDate - startDate));
