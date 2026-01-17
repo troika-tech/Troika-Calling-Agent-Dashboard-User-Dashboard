@@ -7,6 +7,7 @@ import { formatDuration, getUserId, exportToCSV } from '../utils';
 import { useRecording } from '../hooks/useRecording';
 import StatusBadge from './ui/StatusBadge';
 import Pagination from './ui/Pagination';
+import config from '../config';
 
 // Shared supported languages list
 export const SUPPORTED_LANGUAGES = [
@@ -393,9 +394,20 @@ const CallLogs = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700 mb-3">
-            <FaPhone className="h-3 w-3" />
-            <span>Call management</span>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700">
+              <FaPhone className="h-3 w-3" />
+              <span>Call management</span>
+            </div>
+            {config.demoMode && (
+              <div className="inline-flex items-center gap-2 rounded-full bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-700 border border-purple-200">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-purple-500"></span>
+                </span>
+                <span>Exhibition Demo Mode</span>
+              </div>
+            )}
           </div>
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-zinc-900">
             Call Logs
