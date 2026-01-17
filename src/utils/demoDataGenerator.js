@@ -38,7 +38,10 @@ const getCachedCall = (index, totalCalls, config) => {
 
 // Campaign templates with different types and purposes
 const CAMPAIGN_TEMPLATES = [
-  { name: 'Diwali Festival Sale - Warm Leads', type: 'sales', priority: 'high' },
+  { name: 'Christmas Offer Campaign', type: 'sales', priority: 'high' },
+  { name: 'New Year Offer Campaign', type: 'sales', priority: 'high' },
+  { name: 'Holiday Season Special - Premium Plans', type: 'sales', priority: 'high' },
+  { name: 'Year End Sale - Warm Leads', type: 'sales', priority: 'high' },
   { name: 'Payment Reminder - January Batch', type: 'reminder', priority: 'medium' },
   { name: 'Premium Plan Upsell Campaign', type: 'sales', priority: 'high' },
   { name: 'Customer Satisfaction Survey', type: 'survey', priority: 'low' },
@@ -54,24 +57,33 @@ const CAMPAIGN_TEMPLATES = [
 const TRANSCRIPT_TEMPLATES = {
   sales: [
     {
-      assistant: "Hello! This is calling from our sales team. I'd like to tell you about our exclusive Diwali offer.",
+      assistant: "Hello! This is calling from our sales team. I'd like to tell you about our exclusive Christmas offer.",
       user: "Hi, what's this about?",
-      assistant: "We're offering a 30% discount on our premium plans this festive season. Are you currently using any similar services?",
+      assistant: "We're offering a 40% discount on our premium plans this Christmas season. Are you currently using any similar services?",
       user: "Yes, I'm interested. Tell me more.",
       assistant: "Great! Our premium plan includes unlimited calls, advanced analytics, and priority support. Would you like me to email you the details?",
       user: "Yes, please send me the information.",
       assistant: "Perfect! I'll send that right away. Is there anything else you'd like to know?",
       user: "No, that's all for now.",
-      assistant: "Thank you for your time! Have a wonderful day!",
+      assistant: "Thank you for your time! Merry Christmas!",
     },
     {
-      assistant: "Good afternoon! I'm calling to discuss how our AI calling solution can help your business.",
-      user: "I'm a bit busy right now.",
-      assistant: "I understand. This will only take a minute. We've helped companies reduce their calling costs by 60%. Would that be of interest?",
-      user: "Maybe, but I really need to go.",
-      assistant: "No problem! Can I send you a quick email with our case studies?",
+      assistant: "Good afternoon! I'm calling about our special New Year offer on AI calling solutions.",
+      user: "What's the offer about?",
+      assistant: "We're giving 50% off for the first 3 months this New Year. We've helped companies reduce their calling costs by 60%. Would that be of interest?",
+      user: "Yes, that sounds good.",
+      assistant: "Excellent! Can I send you a quick email with all the details and pricing?",
       user: "Sure, that's fine.",
-      assistant: "Excellent! You'll receive it within the hour. Thank you!",
+      assistant: "Perfect! You'll receive it within the hour. Happy New Year!",
+    },
+    {
+      assistant: "Hello! I'm calling to discuss how our AI calling solution can help your business grow this holiday season.",
+      user: "I'm a bit busy right now.",
+      assistant: "I understand. This will only take a minute. We have a special year-end sale with up to 45% discount. Interested?",
+      user: "Maybe, but I really need to go.",
+      assistant: "No problem! Can I send you our holiday brochure via email?",
+      user: "Sure, that works.",
+      assistant: "Excellent! Check your inbox in a few minutes. Thank you!",
     },
   ],
   reminder: [
@@ -352,6 +364,10 @@ export const generateCampaigns = () => {
   // Generate 43 campaigns (some templates used multiple times)
   const campaignList = [];
 
+  // Campaign date range: Nov 1, 2025 to Jan 17, 2026
+  const startDate = new Date('2025-11-01').getTime();
+  const endDate = new Date('2026-01-17').getTime();
+
   for (let i = 0; i < 43; i++) {
     const template = CAMPAIGN_TEMPLATES[i % CAMPAIGN_TEMPLATES.length];
     const campaignId = `camp-${i + 1}`;
@@ -378,6 +394,9 @@ export const generateCampaigns = () => {
     const completed = Math.floor(processed * (demo.completionRate / 100));
     const failed = processed - completed;
 
+    // Distribute campaigns across Nov 2025 - Jan 17 2026
+    const campaignDate = new Date(startDate + (i / 42) * (endDate - startDate));
+
     campaignList.push({
       _id: campaignId,
       id: campaignId,
@@ -390,7 +409,7 @@ export const generateCampaigns = () => {
       totalCalls,
       completedCalls,
       successRate: config.demo.completionRate,
-      createdAt: new Date(Date.now() - (43 - i) * 7 * 86400000).toISOString(),
+      createdAt: campaignDate.toISOString(),
       totalContacts: totalContacts,
       processed: processed,
       remaining: totalContacts - processed,
