@@ -232,6 +232,14 @@ export const generateCalls = (params = {}) => {
     });
   }
 
+  // Filter by direction (all calls are outbound in demo)
+  if (params.direction) {
+    // All demo calls are outbound, so filter out if direction is not outbound
+    if (params.direction !== 'outbound') {
+      filteredIndices = [];
+    }
+  }
+
   // Filter by date range
   if (params.startDate || params.endDate) {
     const startDate = params.startDate ? new Date(params.startDate) : null;
@@ -248,6 +256,23 @@ export const generateCalls = (params = {}) => {
       if (endDate && callTime > endDate) return false;
       return true;
     });
+  }
+
+  // Filter by phone numbers (if provided)
+  // Note: This is less efficient as we need to generate calls to check phone numbers
+  // For demo purposes, we'll skip this filter or implement it post-generation
+  if (params.phoneNumbers && Array.isArray(params.phoneNumbers) && params.phoneNumbers.length > 0) {
+    // Generate calls first, then filter by phone numbers
+    const tempCalls = filteredIndices.map(i => {
+      const campaignIndex = i % demo.totalCampaigns;
+      const template = CAMPAIGN_TEMPLATES[campaignIndex % CAMPAIGN_TEMPLATES.length];
+      return generateCall(i, `campaign-${campaignIndex + 1}`, template.name, template.type);
+    });
+
+    filteredIndices = tempCalls
+      .map((call, idx) => ({ call, originalIndex: filteredIndices[idx] }))
+      .filter(({ call }) => params.phoneNumbers.includes(call.toPhone))
+      .map(({ originalIndex }) => originalIndex);
   }
 
   const filteredTotal = filteredIndices.length;

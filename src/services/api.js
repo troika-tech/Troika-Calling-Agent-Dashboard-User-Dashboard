@@ -151,32 +151,42 @@ export const callAPI = {
   getTopCallsByDuration: async (userId) => {
     if (DEMO_MODE) {
       await mockDelay(300);
-      const now = Date.now();
-      // Generate mock top 4 calls with highest durations
-      const mockTopCalls = Array.from({ length: 4 }).map((_, i) => {
-        const startTime = new Date(now - (i + 1) * 86400000); // Different days
-        const durationMs = (300 + (4 - i) * 60) * 1000; // Decreasing durations in ms
-        
-        return {
-          _id: `top-call-${i + 1}`,
-          sessionId: `CA${Date.now()}${i}`,
-          fromPhone: `+91${9876543210 + i}`,
-          toPhone: `+91${9876543210 + i + 1000}`,
-          status: 'completed',
-          durationSec: durationMs, // Stored as milliseconds per user requirement
-          createdAt: startTime.toISOString(),
-          startedAt: startTime.toISOString(),
-          endedAt: new Date(startTime.getTime() + durationMs).toISOString(),
-          direction: 'outbound',
-          campaignId: { name: ['Diwali Warm Leads', 'Payment Reminder', 'Premium Upsell', 'Follow-up'][i] },
-          agentId: { name: `Agent ${i + 1}` },
-          creditsConsumed: Math.floor(durationMs / 1000),
-        };
-      });
+
+      // Generate 4 completed calls with high durations
+      const topCalls = [];
+      let index = 0;
+      let attempts = 0;
+      const maxAttempts = 100; // Safety limit
+
+      while (topCalls.length < 4 && attempts < maxAttempts) {
+        const call = demoDataGenerator.generateCall(
+          index,
+          'campaign-1',
+          'Diwali Warm Leads',
+          'sales'
+        );
+
+        // Only include completed calls with duration > 100 seconds
+        if (call.status === 'completed' && call.duration > 100) {
+          topCalls.push({
+            ...call,
+            // Convert duration to milliseconds for consistency with backend
+            durationSec: call.duration * 1000,
+            campaignId: { name: call.campaignName },
+            agentId: { name: call.agentName },
+          });
+        }
+
+        index++;
+        attempts++;
+      }
+
+      // Sort by duration descending
+      topCalls.sort((a, b) => b.durationSec - a.durationSec);
 
       return {
         data: {
-          calls: mockTopCalls
+          calls: topCalls.slice(0, 4)
         }
       };
     }
@@ -191,129 +201,27 @@ export const callAPI = {
   getAllCalls: async (params = {}) => {
     if (DEMO_MODE) {
       await mockDelay(300);
-      const now = Date.now();
-      let mockCalls = Array.from({ length: 50 }).map((_, i) => {
-        // Generate random hour between 9 AM and 4 PM for direction chart
-        const hour = 9 + (i % 8);
-        const startTime = new Date(now - i * 3600000);
-        startTime.setHours(hour, Math.floor(Math.random() * 60), 0, 0);
-        
-        // Generate transcript array for completed calls
-        const hasTranscript = i % 3 === 0;
-        const transcript = hasTranscript ? [
-          {
-            speaker: 'assistant',
-            role: 'assistant',
-            text: 'Hello! Thank you for calling. How can I assist you today?',
-            content: 'Hello! Thank you for calling. How can I assist you today?',
-            timestamp: new Date(startTime.getTime() + 2000).toISOString(),
-          },
-          {
-            speaker: 'user',
-            role: 'user',
-            text: 'Hi, I wanted to know about your services.',
-            content: 'Hi, I wanted to know about your services.',
-            timestamp: new Date(startTime.getTime() + 5000).toISOString(),
-          },
-          {
-            speaker: 'assistant',
-            role: 'assistant',
-            text: 'Of course! We offer a wide range of services. Let me provide you with more details...',
-            content: 'Of course! We offer a wide range of services. Let me provide you with more details...',
-            timestamp: new Date(startTime.getTime() + 8000).toISOString(),
-          },
-          {
-            speaker: 'user',
-            role: 'user',
-            text: 'That sounds great. Can you send me more information?',
-            content: 'That sounds great. Can you send me more information?',
-            timestamp: new Date(startTime.getTime() + 12000).toISOString(),
-          },
-          {
-            speaker: 'assistant',
-            role: 'assistant',
-            text: 'Absolutely! I\'ll send you an email with all the details. Is there anything else I can help you with?',
-            content: 'Absolutely! I\'ll send you an email with all the details. Is there anything else I can help you with?',
-            timestamp: new Date(startTime.getTime() + 15000).toISOString(),
-          },
-        ] : null;
 
-        return {
-          _id: `call-${i + 1}`,
-          callSid: `CA${Date.now()}${i}`,
-          sessionId: `CA${Date.now()}${i}`,
-          exotelCallSid: `CA${Date.now()}${i}`,
-          fromPhone: `+91${9876543210 + i}`,
-          toPhone: `+91${9876543210 + i + 1000}`,
-          status: ['completed', 'failed', 'no-answer', 'busy', 'in-progress', 'initiated'][i % 6],
-          duration: Math.floor(Math.random() * 300) + 30,
-          durationSec: Math.floor(Math.random() * 300) + 30,
-          cost: (Math.random() * 2 + 0.5).toFixed(2),
-          createdAt: new Date(now - i * 3600000).toISOString(),
-          startedAt: startTime.toISOString(),
-          startTime: startTime.toISOString(),
-          endedAt: i % 3 === 0 ? new Date(startTime.getTime() + (Math.floor(Math.random() * 300) + 30) * 1000).toISOString() : null,
-          direction: i % 2 === 0 ? 'outbound' : 'inbound',
-          campaignName: ['Diwali Warm Leads', 'Payment Reminder', 'Premium Upsell'][i % 3],
-          agentName: `Agent ${(i % 5) + 1}`,
-          recordingUrl: hasTranscript ? `https://example.com/recording-${i}.mp3` : null,
-          transcript: transcript,
-          creditsConsumed: Math.floor(Math.random() * 300) + 30,
-        };
+      // Extract pagination and filters from params
+      const page = params.page || 1;
+      const limit = params.limit || 25;
+
+      // Build filters object for generateCalls
+      const filters = {};
+      if (params.status) filters.status = params.status;
+      if (params.direction) filters.direction = params.direction;
+      if (params.phoneNumbers) filters.phoneNumbers = params.phoneNumbers;
+      if (params.startDate) filters.startDate = params.startDate;
+      if (params.endDate) filters.endDate = params.endDate;
+
+      // Generate paginated calls using demoDataGenerator
+      const result = demoDataGenerator.generateCalls({
+        page,
+        limit,
+        ...filters
       });
 
-      // Apply filters
-      if (params.status) {
-        mockCalls = mockCalls.filter(call => call.status === params.status);
-      }
-      if (params.direction) {
-        mockCalls = mockCalls.filter(call => call.direction === params.direction);
-      }
-      if (params.phoneNumbers && Array.isArray(params.phoneNumbers) && params.phoneNumbers.length > 0) {
-        mockCalls = mockCalls.filter(call => {
-          const phone = call.direction === 'outbound' ? call.toPhone : call.fromPhone;
-          return params.phoneNumbers.includes(phone);
-        });
-      }
-      if (params.startDate) {
-        const startDate = new Date(params.startDate);
-        mockCalls = mockCalls.filter(call => {
-          const callDate = new Date(call.startedAt || call.startTime || call.createdAt);
-          return callDate >= startDate;
-        });
-      }
-      if (params.endDate) {
-        const endDate = new Date(params.endDate);
-        endDate.setHours(23, 59, 59, 999); // End of day
-        mockCalls = mockCalls.filter(call => {
-          const callDate = new Date(call.startedAt || call.startTime || call.createdAt);
-          return callDate <= endDate;
-        });
-      }
-
-      // Apply pagination
-      const page = params.page || 1;
-      const limit = params.limit || 20;
-      const total = mockCalls.length;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedCalls = mockCalls.slice(startIndex, endIndex);
-
-      return {
-        data: {
-          calls: paginatedCalls,
-          total: total,
-          page: page,
-          limit: limit,
-          pages: Math.ceil(total / limit),
-          pagination: {
-            page: page,
-            limit: limit,
-            total: total,
-            pages: Math.ceil(total / limit),
-          }
-        }
-      };
+      return result;
     }
     const response = await api.get('/api/v1/analytics/calls/logs', { params });
     return response.data;
