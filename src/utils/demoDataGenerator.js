@@ -173,6 +173,20 @@ const getCallDuration = (status, seed) => {
   }
 };
 
+// Generate realistic call SID (like Twilio/Exotel format)
+const generateCallSid = (seed) => {
+  const hexChars = '0123456789abcdef';
+  let sid = 'CA'; // Prefix for call SIDs
+
+  // Generate 32 random hex characters
+  for (let i = 0; i < 32; i++) {
+    const randomIndex = Math.floor(seededRandom(seed * (i + 1) * 7919) * 16);
+    sid += hexChars[randomIndex];
+  }
+
+  return sid;
+};
+
 // Generate transcript for completed/user-ended calls
 const generateTranscript = (campaignType, seed, status) => {
   if (status !== 'completed' && status !== 'user-ended') {
@@ -241,11 +255,14 @@ export const generateCall = (index, campaignId, campaignName, campaignType) => {
   // Realistic direction distribution: 75% outbound, 25% inbound
   const direction = (index * 7919) % 100 < 75 ? 'outbound' : 'inbound';
 
+  // Generate realistic call SID
+  const callSid = generateCallSid(seed);
+
   const call = {
     _id: `call-${index + 1}`,
-    callSid: `CA${1000000 + index}`,
-    sessionId: `CA${1000000 + index}`,
-    exotelCallSid: `CA${1000000 + index}`,
+    callSid: callSid,
+    sessionId: callSid,
+    exotelCallSid: callSid,
     fromPhone: '+919876543210', // Company number
     toPhone: phoneNumber,
     status: status,
