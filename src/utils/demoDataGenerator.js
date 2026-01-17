@@ -4,6 +4,7 @@
  */
 
 import config from '../config';
+import { getRealRecordingUrl } from '../config/realRecordings';
 
 const { demo } = config;
 
@@ -181,6 +182,19 @@ export const generateCall = (index, campaignId, campaignName, campaignType) => {
   const phoneNumber = generatePhoneNumber(seed);
   const transcript = generateTranscript(campaignType, seed, status);
 
+  // Get recording URL - check for real recording first, fallback to demo URL
+  let recordingUrl = null;
+  if (index < demo.realRecordingsCount) {
+    // Try to get real recording URL
+    const realUrl = getRealRecordingUrl(index);
+    if (realUrl) {
+      recordingUrl = realUrl;
+    } else {
+      // Fallback to demo placeholder URL
+      recordingUrl = `https://demo-recordings.example.com/call-${String(index + 1).padStart(3, '0')}.mp3`;
+    }
+  }
+
   const call = {
     _id: `call-${index + 1}`,
     callSid: `CA${1000000 + index}`,
@@ -201,14 +215,13 @@ export const generateCall = (index, campaignId, campaignName, campaignType) => {
     campaignName: campaignName,
     agentName: `AI Agent ${(seed % 5) + 1}`,
     transcript: transcript,
-    recordingUrl: null, // Will be set for first 40 calls
+    recordingUrl: recordingUrl,
     creditsConsumed: duration,
   };
 
   // Flag first 40 calls for real recordings
   if (index < demo.realRecordingsCount) {
     call.isRealRecording = true;
-    call.recordingUrl = `REAL_RECORDING_SLOT_${index + 1}`;
   }
 
   return call;
