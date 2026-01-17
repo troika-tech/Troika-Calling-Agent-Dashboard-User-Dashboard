@@ -377,15 +377,12 @@ export const generateCampaigns = () => {
     const seed = i + 54321;
     const statusRand = seededRandom(seed);
 
+    // Most campaigns completed, some paused
     let status;
-    if (statusRand < 0.6) {
+    if (statusRand < 0.85) {
       status = 'completed';
-    } else if (statusRand < 0.8) {
-      status = 'active';
-    } else if (statusRand < 0.9) {
-      status = 'paused';
     } else {
-      status = 'scheduled';
+      status = 'paused';
     }
 
     // Calculate campaign stats
@@ -402,7 +399,7 @@ export const generateCampaigns = () => {
       id: campaignId,
       name: i < CAMPAIGN_TEMPLATES.length ? template.name : `${template.name} - Batch ${Math.floor(i / CAMPAIGN_TEMPLATES.length) + 1}`,
       type: template.type,
-      status: i < 5 ? 'active' : status,
+      status: status,
       priority: template.priority,
       agentId: { name: `AI Agent ${(seed % 5) + 1}` },
       phoneId: `phone-${(seed % 3) + 1}`,
