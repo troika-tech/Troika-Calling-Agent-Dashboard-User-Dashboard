@@ -150,17 +150,20 @@ const getCallStatus = (seed) => {
 // Generate realistic call duration based on status
 const getCallDuration = (status, seed) => {
   if (status === 'completed') {
-    // Completed calls: 60-300 seconds (1-5 minutes)
+    // Completed calls: 60-300 seconds (1-5 minutes) - PICKED UP
     return Math.floor(60 + seededRandom(seed) * 240);
   } else if (status === 'user-ended') {
-    // User ended: 10-60 seconds
+    // User ended early: 10-60 seconds - PICKED UP
     return Math.floor(10 + seededRandom(seed * 2) * 50);
-  } else if (status === 'busy' || status === 'no-answer') {
-    // Rings but no pickup: 15-35 seconds
-    return Math.floor(15 + seededRandom(seed * 3) * 20);
+  } else if (status === 'no-answer') {
+    // Rang but no pickup: 0-8 seconds (ring time only) - NOT PICKED UP
+    return Math.floor(seededRandom(seed * 3) * 8);
+  } else if (status === 'busy') {
+    // Busy signal: 0-3 seconds - NOT PICKED UP
+    return Math.floor(seededRandom(seed * 4) * 3);
   } else {
-    // Failed: 5-15 seconds
-    return Math.floor(5 + seededRandom(seed * 4) * 10);
+    // Failed: 0-2 seconds (connection attempt only) - NOT PICKED UP
+    return Math.floor(seededRandom(seed * 5) * 2);
   }
 };
 
