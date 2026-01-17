@@ -1099,16 +1099,25 @@ export const schedulingAPI = {
 
       const campaigns = demoDataGenerator.generateCampaigns();
       const mockScheduledCalls = Array.from({ length: 47 }).map((_, i) => {
-        const statuses = ['pending', 'processing', 'completed', 'cancelled', 'failed'];
-        // More pending calls for exhibition (60% pending)
-        const status = i < 30 ? 'pending' : statuses[(i - 30) % 5];
+        // Most calls are completed (70%), some cancelled (15%), few pending (10%), few failed (5%)
+        let status;
+        const rand = i % 100;
+        if (rand < 70) status = 'completed';
+        else if (rand < 85) status = 'cancelled';
+        else if (rand < 95) status = 'pending';
+        else status = 'failed';
 
-        // Distribute over next 7 days
-        const daysAhead = (i % 7) + 1;
-        const hoursAhead = 9 + (i % 8); // Business hours 9-17
-        const scheduledTime = new Date();
-        scheduledTime.setDate(scheduledTime.getDate() + daysAhead);
-        scheduledTime.setHours(hoursAhead, i % 60, 0, 0);
+        // Distribute from November 2024 to January 2026 (3 months period)
+        // Start date: Nov 1, 2024
+        const startDate = new Date('2024-11-01');
+        const endDate = new Date('2026-01-17');
+        const timeRange = endDate - startDate;
+        const randomOffset = Math.floor((i / 47) * timeRange);
+        const scheduledTime = new Date(startDate.getTime() + randomOffset);
+
+        // Set to business hours (9 AM - 5 PM)
+        const hour = 9 + (i % 8);
+        scheduledTime.setHours(hour, (i * 13) % 60, 0, 0);
 
         const campaign = campaigns[i % campaigns.length] || {
           _id: `camp-${i + 1}`,
@@ -1226,14 +1235,14 @@ export const schedulingAPI = {
         success: true,
         data: {
           scheduler: {
-            totalScheduled: 438,      // Changed from 450
-            pending: 267,             // Changed from 280
-            processing: 18,           // Changed from 20
-            completed: 126,           // Changed from 120
-            cancelled: 19,            // Changed from 20
-            failed: 8,                // Changed from 10
-            todayScheduled: 33,       // Changed from 35
-            upcomingToday: 14,        // Changed from 15
+            totalScheduled: 438,      // Total scheduled over 3 months
+            pending: 41,              // ~10% pending (future calls)
+            processing: 8,            // Few processing
+            completed: 307,           // ~70% completed (historical)
+            cancelled: 66,            // ~15% cancelled
+            failed: 16,               // ~5% failed
+            todayScheduled: 3,        // Few scheduled for today
+            upcomingToday: 2,         // Few upcoming today
             recurringCalls: 87        // Changed from 90
           }
         }
