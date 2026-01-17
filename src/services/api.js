@@ -981,7 +981,7 @@ export const creditsAPI = {
       return {
         success: true,
         data: {
-          credits: 5420,
+          credits: config.demo.creditBalance,
           expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year from now
         }
       };
