@@ -548,6 +548,12 @@ export const agentAPI = {
 export const campaignAPI = {
   // Get campaign count for logged in user
   getCount: async () => {
+    if (DEMO_MODE) {
+      await mockDelay(50);
+      return {
+        data: { count: config.demo.totalCampaigns }
+      };
+    }
     const response = await api.get('/api/v1/campaigns/count');
     return response.data;
   },
@@ -619,60 +625,9 @@ export const campaignAPI = {
     // ALWAYS check DEMO_MODE first - return immediately to avoid timeout
     if (DEMO_MODE) {
       await mockDelay(100); // Reduced delay for faster loading
+      const campaigns = demoDataGenerator.generateCampaigns();
       return {
-        data: [
-          {
-            _id: 'campaign-1',
-            name: 'Diwali Warm Leads',
-            status: 'active',
-            agentId: 'agent-1',
-            phoneId: 'phone-1',
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-            liveStats: {
-              processed: 450,
-              totalNumbers: 1000,
-              remaining: 550,
-              activeCalls: 5,
-              queueLength: 12,
-              completed: 420,
-              failed: 30,
-            }
-          },
-          {
-            _id: 'campaign-2',
-            name: 'Payment Reminder Batch',
-            status: 'paused',
-            agentId: 'agent-2',
-            phoneId: 'phone-2',
-            createdAt: new Date(Date.now() - 172800000).toISOString(),
-            liveStats: {
-              processed: 210,
-              totalNumbers: 500,
-              remaining: 290,
-              activeCalls: 0,
-              queueLength: 0,
-              completed: 200,
-              failed: 10,
-            }
-          },
-          {
-            _id: 'campaign-3',
-            name: 'Premium Upsell List',
-            status: 'active',
-            agentId: 'agent-1',
-            phoneId: 'phone-1',
-            createdAt: new Date(Date.now() - 3600000).toISOString(),
-            liveStats: {
-              processed: 145,
-              totalNumbers: 300,
-              remaining: 155,
-              activeCalls: 3,
-              queueLength: 8,
-              completed: 140,
-              failed: 5,
-            }
-          },
-        ]
+        data: { campaigns: campaigns.data }
       };
     }
     const response = await api.get('/api/v1/campaigns', { params });
