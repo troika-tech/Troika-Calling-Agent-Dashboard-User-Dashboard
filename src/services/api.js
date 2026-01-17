@@ -1,5 +1,6 @@
 import axios from 'axios';
 import config from '../config';
+import demoDataGenerator from '../utils/demoDataGenerator';
 
 // Use config file for API URL and demo mode
 const API_BASE_URL = config.apiBaseUrl;
