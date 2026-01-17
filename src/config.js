@@ -73,8 +73,27 @@ const config = {
   // WebSocket Configuration
   wsBaseUrl: getWsUrl(),
   
-  // Demo Mode - Set to true to use mock data instead of real API
-  demoMode: false, // Change to true to enable demo mode
+  // Demo Mode Configuration
+  demoMode: true, // Change to false to use real API
+  demo: {
+    // Exhibition stats (impressive numbers for showcase)
+    totalCalls: 120000,
+    totalCampaigns: 45,
+    realRecordingsCount: 40, // First 40 calls will have slots for real recordings
+
+    // Performance metrics (optimized for exhibition impression)
+    pickupRate: 78, // 78% pickup rate
+    completionRate: 67, // 67% completion rate
+    avgDuration: 142, // seconds
+
+    // Cost savings showcase
+    creditBalance: 250000,
+    avgCallCost: 1.2, // rupees
+
+    // Time period for demo data
+    dataStartDate: '2024-10-17', // 3 months ago from today
+    dataEndDate: '2026-01-17', // today
+  },
   
   // Feature Flags
   features: {
