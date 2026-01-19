@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaCreditCard, FaCoins, FaCheckCircle, FaSpinner } from 'react-icons/fa';
 import { creditsAPI, authAPI } from '../services/api';
-import NotificationSettings from './NotificationSettings';
 
 const Settings = () => {
   const [settings, setSettings] = useState({
@@ -310,9 +309,6 @@ const Settings = () => {
           </div>
         </div>
       </div>
-
-      {/* Notification Settings */}
-      <NotificationSettings />
     </div>
   );
 };
