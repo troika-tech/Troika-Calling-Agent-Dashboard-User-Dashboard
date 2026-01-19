@@ -20,6 +20,7 @@ const CreditHistory = () => {
   const [dateSortOrder, setDateSortOrder] = useState('desc'); // desc = newest first
   const [autoRefresh, setAutoRefresh] = useState(true); // Auto-refresh enabled by default
   const [creditNotification, setCreditNotification] = useState(null); // For toast-like notifications
+  const [stats, setStats] = useState(null); // Stats from backend (demo mode)
 
   // Get user ID for WebSocket connection
   const user = getUser();
@@ -83,6 +84,11 @@ const CreditHistory = () => {
       const response = await creditsAPI.getTransactions(options);
       setTransactions(response.data.transactions || []);
       setCurrentBalance(response.data.currentBalance || 0);
+      if (response.data.stats) {
+        setStats(response.data.stats);
+      } else {
+        setStats(null);
+      }
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Error fetching credit transactions:', err);
@@ -206,12 +212,14 @@ const CreditHistory = () => {
   };
 
   const getTotalCreditsUsed = () => {
+    if (stats && stats.creditsUsed) return stats.creditsUsed;
     return filteredTransactions
       .filter(txn => txn.type === 'deduction')
       .reduce((sum, txn) => sum + Math.abs(txn.amount), 0);
   };
 
   const getTotalCreditsAdded = () => {
+    if (stats && stats.creditsAdded) return stats.creditsAdded;
     return filteredTransactions
       .filter(txn => txn.type === 'addition')
       .reduce((sum, txn) => sum + txn.amount, 0);
@@ -221,11 +229,10 @@ const CreditHistory = () => {
     <div className="space-y-6">
       {/* Credit Update Notification Toast */}
       {creditNotification && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg border transition-all duration-300 ${
-          creditNotification.type === 'addition' 
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
-            : 'bg-amber-50 border-amber-200 text-amber-800'
-        }`}>
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg border transition-all duration-300 ${creditNotification.type === 'addition'
+          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          : 'bg-amber-50 border-amber-200 text-amber-800'
+          }`}>
           <div className="flex items-center gap-2">
             {creditNotification.type === 'addition' ? (
               <FaArrowUp className="text-emerald-500" />

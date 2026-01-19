@@ -29,11 +29,11 @@ const CallSummary = () => {
     startDate: '',
     endDate: '',
   });
-  
+
   // Audio playback state
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  
+
   // Translation state
   const [selectedLanguage, setSelectedLanguage] = useState('');
   const [translatedTranscript, setTranslatedTranscript] = useState(null);
@@ -55,7 +55,7 @@ const CallSummary = () => {
       setError(null);
 
       // Get date range from filters or default to last 21 days
-      const endDate = filters.endDate 
+      const endDate = filters.endDate
         ? new Date(filters.endDate + 'T23:59:59')
         : new Date();
       const startDate = filters.startDate
@@ -220,7 +220,7 @@ const CallSummary = () => {
 
     toast.info('Downloading recording...');
     const success = await downloadRecording(selectedCall._id, `call_recording_${selectedCall._id}.mp3`);
-    
+
     if (success) {
       toast.success('Recording downloaded successfully');
     } else {
@@ -241,7 +241,7 @@ const CallSummary = () => {
 
     try {
       setTranslating(true);
-      
+
       // Translate transcript if available
       if (selectedCall?.transcript && selectedCall.transcript.length > 0) {
         const transcriptResponse = await translateAPI.translateTranscript(
@@ -264,8 +264,8 @@ const CallSummary = () => {
         if (summaryResponse.success && summaryResponse.data?.translations?.[0]) {
           // API returns {original, translated} object, extract translated text
           const translationResult = summaryResponse.data.translations[0];
-          const translatedText = typeof translationResult === 'string' 
-            ? translationResult 
+          const translatedText = typeof translationResult === 'string'
+            ? translationResult
             : translationResult.translated || translationResult;
           setTranslatedSummary(translatedText);
         }
@@ -519,7 +519,7 @@ const CallSummary = () => {
             <thead>
               <tr className="bg-gradient-to-r from-emerald-50/80 to-teal-50/80 border-b border-zinc-200">
                 <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">Campaign</th>
-                <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">Name</th>
+
                 <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">Number</th>
                 <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">
                   <div className="flex items-center gap-1.5 cursor-pointer hover:text-zinc-900 transition-colors" onClick={() => setDateSortOrder(dateSortOrder === 'desc' ? 'asc' : 'desc')}>
@@ -548,9 +548,7 @@ const CallSummary = () => {
                     <td className="px-4 py-3">
                       <div className="text-sm text-zinc-600">{call.campaignName || 'N/A'}</div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm font-medium text-zinc-900">{call.name || 'Unknown'}</div>
-                    </td>
+
                     <td className="px-4 py-3">
                       <div className="text-sm font-medium text-zinc-900">{call.phoneNumber}</div>
                     </td>
@@ -669,7 +667,7 @@ const CallSummary = () => {
                     </option>
                   ))}
                 </select>
-                
+
                 <button
                   onClick={handleTranslate}
                   disabled={!selectedLanguage || translating}
@@ -687,7 +685,7 @@ const CallSummary = () => {
                     </>
                   )}
                 </button>
-                
+
                 {showTranslated && (
                   <button
                     onClick={handleShowOriginal}
@@ -712,7 +710,7 @@ const CallSummary = () => {
                   )}
                 </div>
                 <p className="text-sm text-zinc-700 whitespace-pre-wrap leading-relaxed">
-                  {showTranslated && translatedSummary 
+                  {showTranslated && translatedSummary
                     ? (typeof translatedSummary === 'string' ? translatedSummary : translatedSummary.translated || selectedCall.summary)
                     : selectedCall.summary}
                 </p>
@@ -728,14 +726,14 @@ const CallSummary = () => {
               {selectedCall.recordingUrl ? (
                 <div className="space-y-3">
                   {/* Audio Player */}
-                  <audio 
-                    controls 
+                  <audio
+                    controls
                     className="w-full"
                     src={selectedCall.recordingUrl}
                   >
                     Your browser does not support the audio element.
                   </audio>
-                  
+
                   {/* Download Button */}
                   <div className="flex items-center gap-2">
                     <button
@@ -776,23 +774,22 @@ const CallSummary = () => {
                     </span>
                   )}
                 </div>
-                
+
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {(showTranslated && translatedTranscript ? translatedTranscript : selectedCall.transcript).map((entry, idx) => {
                     const isUser = entry.speaker === 'user' || entry.speaker === 'customer';
                     const text = entry.text || entry.content || '';
-                    
+
                     return (
                       <div
                         key={idx}
                         className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}
                       >
                         <div
-                          className={`max-w-[75%] p-3 rounded-lg ${
-                            isUser
+                          className={`max-w-[75%] p-3 rounded-lg ${isUser
                               ? 'bg-blue-50 border border-blue-200 rounded-tl-none'
                               : 'bg-emerald-50 border border-emerald-200 rounded-tr-none'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between mb-1 gap-2">
                             <span className="text-xs font-medium text-zinc-600">

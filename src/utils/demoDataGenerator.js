@@ -12,6 +12,9 @@ const { demo } = config;
 const callCache = new Map();
 const CACHE_SIZE = 1000; // Cache last 1000 calls
 
+// Single source of truth for campaigns data - cached
+let cachedCampaigns = null;
+
 /**
  * Get or generate call with caching
  */
@@ -376,108 +379,169 @@ export const generateCalls = (params = {}) => {
   };
 };
 
-// Generate campaigns
-export const generateCampaigns = () => {
-  // Generate 43 campaigns (some templates used multiple times)
-  const campaignList = [];
+// ============================================
+// STATIC CAMPAIGNS DATA - Single source of truth
+// Used by both Campaigns page and Delivery Reports page
+// Total: 85 campaigns, ~119,847 calls
+// ============================================
+const STATIC_CAMPAIGNS = [
+  // November 2025 (20 campaigns)
+  { id: 1, name: 'Christmas Offer Campaign', status: 'completed', totalContacts: 1456, completedCalls: 1456, failedCalls: 0, date: '2025-11-01' },
+  { id: 2, name: 'New Year Offer Campaign', status: 'completed', totalContacts: 1287, completedCalls: 1287, failedCalls: 0, date: '2025-11-02' },
+  { id: 3, name: 'Holiday Season Special', status: 'completed', totalContacts: 1823, completedCalls: 1823, failedCalls: 0, date: '2025-11-03' },
+  { id: 4, name: 'Year End Sale - Warm Leads', status: 'completed', totalContacts: 1345, completedCalls: 1345, failedCalls: 0, date: '2025-11-04' },
+  { id: 5, name: 'Payment Reminder Batch 1', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2025-11-05' },
+  { id: 6, name: 'Premium Plan Upsell', status: 'completed', totalContacts: 1234, completedCalls: 1234, failedCalls: 0, date: '2025-11-06' },
+  { id: 7, name: 'Customer Satisfaction Survey', status: 'completed', totalContacts: 987, completedCalls: 987, failedCalls: 0, date: '2025-11-07' },
+  { id: 8, name: 'New Feature Announcement', status: 'completed', totalContacts: 1543, completedCalls: 1543, failedCalls: 0, date: '2025-11-08' },
+  { id: 9, name: 'Account Renewal Reminder', status: 'completed', totalContacts: 1876, completedCalls: 1876, failedCalls: 0, date: '2025-11-09' },
+  { id: 10, name: 'Product Demo Follow-up', status: 'completed', totalContacts: 1123, completedCalls: 1123, failedCalls: 0, date: '2025-11-10' },
+  { id: 11, name: 'Service Feedback Collection', status: 'completed', totalContacts: 1765, completedCalls: 1765, failedCalls: 0, date: '2025-11-11' },
+  { id: 12, name: 'Welcome Call - New Users', status: 'completed', totalContacts: 1432, completedCalls: 1432, failedCalls: 0, date: '2025-11-12' },
+  { id: 13, name: 'Re-engagement Campaign', status: 'completed', totalContacts: 1098, completedCalls: 1098, failedCalls: 0, date: '2025-11-13' },
+  { id: 14, name: 'Cross-sell Add-ons', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2025-11-14' },
+  { id: 15, name: 'Loyalty Program Promo', status: 'paused', totalContacts: 1387, completedCalls: 450, failedCalls: 0, date: '2025-11-15' },
+  { id: 16, name: 'Technical Support Outreach', status: 'completed', totalContacts: 876, completedCalls: 876, failedCalls: 0, date: '2025-11-16' },
+  { id: 17, name: 'Holiday Greetings Call', status: 'completed', totalContacts: 1543, completedCalls: 1543, failedCalls: 0, date: '2025-11-17' },
+  { id: 18, name: 'Black Friday Preview', status: 'completed', totalContacts: 1987, completedCalls: 1987, failedCalls: 0, date: '2025-11-18' },
+  { id: 19, name: 'Weekend Flash Sale', status: 'completed', totalContacts: 1234, completedCalls: 1234, failedCalls: 0, date: '2025-11-19' },
+  { id: 20, name: 'Thanksgiving Special', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2025-11-20' },
+  // Late November (10 campaigns)
+  { id: 21, name: 'Black Friday Deals', status: 'completed', totalContacts: 2134, completedCalls: 2134, failedCalls: 0, date: '2025-11-21' },
+  { id: 22, name: 'Cyber Monday Prep', status: 'completed', totalContacts: 1456, completedCalls: 1456, failedCalls: 0, date: '2025-11-22' },
+  { id: 23, name: 'Small Business Saturday', status: 'completed', totalContacts: 1123, completedCalls: 1123, failedCalls: 0, date: '2025-11-23' },
+  { id: 24, name: 'Cyber Monday Sale', status: 'completed', totalContacts: 1876, completedCalls: 1876, failedCalls: 0, date: '2025-11-24' },
+  { id: 25, name: 'Post-Holiday Follow-up', status: 'completed', totalContacts: 1345, completedCalls: 1345, failedCalls: 0, date: '2025-11-25' },
+  { id: 26, name: 'Extended Sale Campaign', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2025-11-26' },
+  { id: 27, name: 'Month-End Push', status: 'completed', totalContacts: 1234, completedCalls: 1234, failedCalls: 0, date: '2025-11-27' },
+  { id: 28, name: 'VIP Early Access', status: 'completed', totalContacts: 987, completedCalls: 987, failedCalls: 0, date: '2025-11-28' },
+  { id: 29, name: 'Premium Tier Outreach', status: 'completed', totalContacts: 1543, completedCalls: 1543, failedCalls: 0, date: '2025-11-29' },
+  { id: 30, name: 'November Closing Sale', status: 'completed', totalContacts: 1765, completedCalls: 1765, failedCalls: 0, date: '2025-11-30' },
+  // December 2025 (30 campaigns)
+  { id: 31, name: 'December Kickoff', status: 'completed', totalContacts: 1432, completedCalls: 1432, failedCalls: 0, date: '2025-12-01' },
+  { id: 32, name: 'Winter Warm-up Sale', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2025-12-02' },
+  { id: 33, name: 'Gift Guide Promotion', status: 'completed', totalContacts: 1876, completedCalls: 1876, failedCalls: 0, date: '2025-12-03' },
+  { id: 34, name: 'Free Shipping Week', status: 'completed', totalContacts: 1234, completedCalls: 1234, failedCalls: 0, date: '2025-12-04' },
+  { id: 35, name: 'Holiday Bundle Deals', status: 'completed', totalContacts: 1543, completedCalls: 1543, failedCalls: 0, date: '2025-12-05' },
+  { id: 36, name: 'Weekend Warriors Sale', status: 'paused', totalContacts: 1123, completedCalls: 320, failedCalls: 0, date: '2025-12-06' },
+  { id: 37, name: 'Pearl Harbor Day Promo', status: 'completed', totalContacts: 987, completedCalls: 987, failedCalls: 0, date: '2025-12-07' },
+  { id: 38, name: 'Mid-Week Special', status: 'completed', totalContacts: 1345, completedCalls: 1345, failedCalls: 0, date: '2025-12-08' },
+  { id: 39, name: 'Gift Card Campaign', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2025-12-09' },
+  { id: 40, name: 'Last Minute Gifts', status: 'completed', totalContacts: 1876, completedCalls: 1876, failedCalls: 0, date: '2025-12-10' },
+  { id: 41, name: 'Green Monday Sale', status: 'completed', totalContacts: 1765, completedCalls: 1765, failedCalls: 0, date: '2025-12-11' },
+  { id: 42, name: 'Express Shipping Push', status: 'completed', totalContacts: 1432, completedCalls: 1432, failedCalls: 0, date: '2025-12-12' },
+  { id: 43, name: 'Friday the 13th Deals', status: 'completed', totalContacts: 1234, completedCalls: 1234, failedCalls: 0, date: '2025-12-13' },
+  { id: 44, name: 'Weekend Rush Sale', status: 'completed', totalContacts: 1543, completedCalls: 1543, failedCalls: 0, date: '2025-12-14' },
+  { id: 45, name: 'Final Push Week', status: 'completed', totalContacts: 1987, completedCalls: 1987, failedCalls: 0, date: '2025-12-15' },
+  { id: 46, name: 'Super Saver Monday', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2025-12-16' },
+  { id: 47, name: 'Digital Deals Day', status: 'completed', totalContacts: 1123, completedCalls: 1123, failedCalls: 0, date: '2025-12-17' },
+  { id: 48, name: 'Two Day Shipping Cut', status: 'completed', totalContacts: 1345, completedCalls: 1345, failedCalls: 0, date: '2025-12-18' },
+  { id: 49, name: 'Last Ship Date Alert', status: 'completed', totalContacts: 1876, completedCalls: 1876, failedCalls: 0, date: '2025-12-19' },
+  { id: 50, name: 'Store Pickup Promo', status: 'completed', totalContacts: 1234, completedCalls: 1234, failedCalls: 0, date: '2025-12-20' },
+  { id: 51, name: 'Winter Solstice Sale', status: 'completed', totalContacts: 1543, completedCalls: 1543, failedCalls: 0, date: '2025-12-21' },
+  { id: 52, name: 'Last Call Campaign', status: 'completed', totalContacts: 987, completedCalls: 987, failedCalls: 0, date: '2025-12-22' },
+  { id: 53, name: 'Christmas Eve Rush', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2025-12-23' },
+  { id: 54, name: 'Christmas Day Greetings', status: 'completed', totalContacts: 876, completedCalls: 876, failedCalls: 0, date: '2025-12-24' },
+  { id: 55, name: 'Boxing Day Sale', status: 'completed', totalContacts: 1765, completedCalls: 1765, failedCalls: 0, date: '2025-12-26' },
+  { id: 56, name: 'Year End Clearance', status: 'completed', totalContacts: 1432, completedCalls: 1432, failedCalls: 0, date: '2025-12-27' },
+  { id: 57, name: 'Weekend Blowout', status: 'paused', totalContacts: 1234, completedCalls: 410, failedCalls: 0, date: '2025-12-28' },
+  { id: 58, name: 'New Year Countdown', status: 'completed', totalContacts: 1543, completedCalls: 1543, failedCalls: 0, date: '2025-12-29' },
+  { id: 59, name: 'Year End Thank You', status: 'completed', totalContacts: 1123, completedCalls: 1123, failedCalls: 0, date: '2025-12-30' },
+  { id: 60, name: 'New Year Eve Special', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2025-12-31' },
+  // January 2026 (25 campaigns)
+  { id: 61, name: 'New Year Fresh Start', status: 'completed', totalContacts: 1345, completedCalls: 1345, failedCalls: 0, date: '2026-01-01' },
+  { id: 62, name: 'January Kickoff Sale', status: 'completed', totalContacts: 1876, completedCalls: 1876, failedCalls: 0, date: '2026-01-02' },
+  { id: 63, name: 'Winter Clearance Event', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2026-01-03' },
+  { id: 64, name: 'New Year Resolution', status: 'paused', totalContacts: 1234, completedCalls: 150, failedCalls: 0, date: '2026-01-04' },
+  { id: 65, name: 'Weekend Warrior Sale', status: 'completed', totalContacts: 1432, completedCalls: 1432, failedCalls: 0, date: '2026-01-05' },
+  { id: 66, name: 'Monday Motivation', status: 'completed', totalContacts: 1123, completedCalls: 1123, failedCalls: 0, date: '2026-01-06' },
+  { id: 67, name: 'Mid-Week Deals', status: 'completed', totalContacts: 987, completedCalls: 987, failedCalls: 0, date: '2026-01-07' },
+  { id: 68, name: 'Customer Loyalty Week', status: 'completed', totalContacts: 1543, completedCalls: 1543, failedCalls: 0, date: '2026-01-08' },
+  { id: 69, name: 'Premium Member Drive', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2026-01-09' },
+  { id: 70, name: 'Friday Flash Sale', status: 'completed', totalContacts: 1765, completedCalls: 1765, failedCalls: 0, date: '2026-01-10' },
+  { id: 71, name: 'Weekend Special', status: 'completed', totalContacts: 1234, completedCalls: 1234, failedCalls: 0, date: '2026-01-11' },
+  { id: 72, name: 'Sunday Savings', status: 'completed', totalContacts: 1123, completedCalls: 1123, failedCalls: 0, date: '2026-01-12' },
+  { id: 73, name: 'New Week New Deals', status: 'completed', totalContacts: 1432, completedCalls: 1432, failedCalls: 0, date: '2026-01-13' },
+  { id: 74, name: 'Valentine Preview', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2026-01-14' },
+  { id: 75, name: 'Mid-January Push', status: 'completed', totalContacts: 1345, completedCalls: 1345, failedCalls: 0, date: '2026-01-15' },
+  { id: 76, name: 'MLK Day Special', status: 'completed', totalContacts: 1543, completedCalls: 1543, failedCalls: 0, date: '2026-01-16' },
+  { id: 77, name: 'Friday Frenzy Sale', status: 'completed', totalContacts: 1876, completedCalls: 1876, failedCalls: 0, date: '2026-01-17' },
+  { id: 78, name: 'Weekend Warriors', status: 'completed', totalContacts: 1234, completedCalls: 1234, failedCalls: 0, date: '2026-01-18' },
+  { id: 79, name: 'Super Saver Sunday', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2026-01-19' },
+  { id: 80, name: 'Blue Monday Boost', status: 'completed', totalContacts: 1432, completedCalls: 1432, failedCalls: 0, date: '2026-01-19' },
+  { id: 81, name: 'Flash Deal Tuesday', status: 'completed', totalContacts: 1123, completedCalls: 1123, failedCalls: 0, date: '2026-01-19' },
+  { id: 82, name: 'Hump Day Hustle', status: 'completed', totalContacts: 1345, completedCalls: 1345, failedCalls: 0, date: '2026-01-19' },
+  { id: 83, name: 'Thursday Thunder', status: 'completed', totalContacts: 1543, completedCalls: 1543, failedCalls: 0, date: '2026-01-19' },
+  { id: 84, name: 'Friday Finale', status: 'completed', totalContacts: 1234, completedCalls: 1234, failedCalls: 0, date: '2026-01-19' },
+  { id: 85, name: 'Weekend Wrap-up', status: 'completed', totalContacts: 1654, completedCalls: 1654, failedCalls: 0, date: '2026-01-19' },
+];
 
-  // Campaign date range: Nov 1, 2025 to Jan 17, 2026
-  const startDate = new Date('2025-11-01').getTime();
-  const endDate = new Date('2026-01-17').getTime();
+// Generate full campaign objects from static data
+const getCampaignsList = () => {
+  return [...STATIC_CAMPAIGNS].sort((a, b) => new Date(b.date) - new Date(a.date)).map((c, i) => {
+    const campaignDate = new Date(c.date);
+    const processed = c.completedCalls + c.failedCalls;
+    const remaining = c.totalContacts - processed;
 
-  for (let i = 0; i < 43; i++) {
-    const template = CAMPAIGN_TEMPLATES[i % CAMPAIGN_TEMPLATES.length];
-    const campaignId = `camp-${i + 1}`;
-    const totalCalls = Math.floor(config.demo.totalCalls / 43) + (i % 5); // Add variance
+    // Generate random concurrency (2-6) and retry attempts using seeded random
+    const seed = c.id + 12345;
+    const concurrentCalls = 2 + Math.floor(seededRandom(seed * 7) * 5); // 2-6
+    // Retry contact: 10-120 based on campaign size
+    const minRetry = 10 + Math.floor(seededRandom(seed * 13) * 30); // 10-40
+    const maxRetry = 80 + Math.floor(seededRandom(seed * 17) * 41); // 80-120
+    const retryContact = minRetry + Math.floor(seededRandom(seed * 19) * (maxRetry - minRetry));
+    // Total retries made: 1-3x of retry contacts (realistic retry count)
+    const retryMultiplier = 1 + seededRandom(seed * 23) * 2; // 1-3x
+    const totalRetriesMade = Math.floor(retryContact * retryMultiplier);
 
-    const seed = i + 54321;
-    const statusRand = seededRandom(seed);
-
-    // Most campaigns completed, some paused
-    let status;
-    if (statusRand < 0.85) {
-      status = 'completed';
-    } else {
-      status = 'paused';
-    }
-
-    // Calculate campaign stats
-    const totalContacts = 1000 + Math.floor(seededRandom(seed * 2) * 4000);
-
-    // Completed campaigns: 100% progress, Paused campaigns: 40-70% progress
-    let processed, completed, failed, completedCalls, failedCalls;
-    if (status === 'completed') {
-      processed = totalContacts; // 100% progress
-
-      // Some campaigns have 0 failures (70%), others have minimal failures (1-3%)
-      const failureRand = seededRandom(seed * 6);
-      if (failureRand < 0.7) {
-        // 70% campaigns have 0 failed calls (perfect success)
-        failedCalls = 0;
-        completedCalls = totalContacts;
-      } else {
-        // 30% campaigns have 1-3% failed calls
-        failedCalls = Math.floor(totalContacts * (0.01 + seededRandom(seed * 7) * 0.02));
-        completedCalls = totalContacts - failedCalls;
-      }
-      completed = completedCalls;
-      failed = failedCalls;
-    } else {
-      // Paused campaigns have partial progress (40-70%)
-      processed = Math.floor(totalContacts * (0.4 + seededRandom(seed * 3) * 0.3));
-
-      // Paused campaigns also have minimal failures
-      const failureRand = seededRandom(seed * 6);
-      if (failureRand < 0.7) {
-        // 70% have 0 failed calls
-        failedCalls = 0;
-        completedCalls = processed;
-      } else {
-        // 30% have 1-3% failed calls
-        failedCalls = Math.floor(processed * (0.01 + seededRandom(seed * 7) * 0.02));
-        completedCalls = processed - failedCalls;
-      }
-      completed = completedCalls;
-      failed = failedCalls;
-    }
-
-    // Distribute campaigns across Nov 2025 - Jan 17 2026
-    const campaignDate = new Date(startDate + (i / 42) * (endDate - startDate));
-
-    campaignList.push({
-      _id: campaignId,
-      id: campaignId,
-      name: i < CAMPAIGN_TEMPLATES.length ? template.name : `${template.name} - Batch ${Math.floor(i / CAMPAIGN_TEMPLATES.length) + 1}`,
-      type: template.type,
-      status: status,
-      priority: template.priority,
-      agentId: { name: `AI Agent ${(seed % 5) + 1}` },
-      phoneId: `phone-${(seed % 3) + 1}`,
-      totalCalls,
-      completedCalls,
-      failedCalls,
+    return {
+      _id: `camp-${c.id}`,
+      id: `camp-${c.id}`,
+      name: c.name,
+      type: 'sales',
+      status: c.status,
+      priority: 'high',
+      agentId: { name: `AI Agent ${(c.id % 5) + 1}` },
+      phoneId: `phone-${(c.id % 3) + 1}`,
+      totalCalls: c.totalContacts,
+      completedCalls: c.completedCalls,
+      failedCalls: c.failedCalls,
       skippedCalls: 0,
       voicemailCalls: 0,
-      successRate: config.demo.completionRate,
+      successRate: 95,
       createdAt: campaignDate.toISOString(),
-      totalContacts: totalContacts,
+      totalContacts: c.totalContacts,
       processed: processed,
-      remaining: totalContacts - processed,
-      completed: completed,
-      failed: failed,
+      remaining: remaining,
+      completed: c.completedCalls,
+      failed: c.failedCalls,
+      // Add concurrency and retry fields
+      concurrentCallsLimit: concurrentCalls,
+      settings: {
+        concurrentCallsLimit: concurrentCalls,
+        retryAttempts: 3, // Max retry attempts allowed (config)
+      },
+      retryContact: retryContact,
+      retryAttempt: totalRetriesMade,
+      // These are the field names the UI expects
+      contactsSetForRetry: retryContact,
+      totalRetriesMade: totalRetriesMade,
       liveStats: {
         processed: processed,
-        totalNumbers: totalContacts,
-        remaining: totalContacts - processed,
-        activeCalls: status === 'active' ? Math.floor(seededRandom(seed * 4) * 10) : 0,
-        queueLength: status === 'active' ? Math.floor(seededRandom(seed * 5) * 50) : 0,
-        completed: completed,
-        failed: failed,
+        totalNumbers: c.totalContacts,
+        remaining: remaining,
+        activeCalls: c.status === 'active' ? Math.floor(Math.random() * 10) : 0,
+        queueLength: c.status === 'active' ? remaining : 0,
+        completed: c.completedCalls,
+        failed: c.failedCalls,
       }
-    });
-  }
+    };
+  });
+};
 
-  return { data: campaignList };
+// Generate campaigns - returns the static data
+export const generateCampaigns = () => {
+  return { data: getCampaignsList() };
 };
 
 // Generate dashboard analytics
@@ -545,6 +609,267 @@ export const generateWeeklyChartData = () => {
   };
 };
 
+// Generate delivery reports based on campaigns - uses same data as campaigns page
+export const generateDeliveryReports = (params = {}) => {
+  const page = params.page || 1;
+  const limit = params.limit || 25;
+  const search = params.search || '';
+
+  // Get campaigns data to ensure consistency
+  const campaignsData = generateCampaigns();
+  const campaigns = campaignsData.data;
+
+  // Convert campaigns to delivery reports format
+  const reports = campaigns.map((campaign, i) => {
+    const seed = i + 54321;
+
+    // Generate random-looking unique ID (12 digits)
+    const d1 = Math.floor(seededRandom(seed * 11) * 9) + 1; // 1-9
+    const d2 = Math.floor(seededRandom(seed * 13) * 10);
+    const d3 = Math.floor(seededRandom(seed * 17) * 10);
+    const d4 = Math.floor(seededRandom(seed * 19) * 10);
+    const d5 = Math.floor(seededRandom(seed * 23) * 10);
+    const d6 = Math.floor(seededRandom(seed * 29) * 10);
+    const d7 = Math.floor(seededRandom(seed * 31) * 10);
+    const d8 = Math.floor(seededRandom(seed * 37) * 10);
+    const d9 = Math.floor(seededRandom(seed * 41) * 10);
+    const d10 = Math.floor(seededRandom(seed * 43) * 10);
+    const d11 = Math.floor(seededRandom(seed * 47) * 10);
+    const d12 = Math.floor(seededRandom(seed * 53) * 10);
+    const uniqueId = `${d1}${d2}${d3}${d4}${d5}${d6}${d7}${d8}${d9}${d10}${d11}${d12}`;
+
+    // Calculate used credits from completed calls  
+    const usedCredits = Math.floor(campaign.completedCalls * (140 + seededRandom(seed * 3) * 60));
+
+    return {
+      _id: `report-${i + 1}`,
+      uniqueId: uniqueId,
+      campaignName: campaign.name, // Use exact campaign name
+      totalNumbers: campaign.totalContacts,
+      usedCredits: usedCredits,
+      status: campaign.status, // Use exact campaign status
+      createdAt: campaign.createdAt,
+      campaignId: campaign._id,
+    };
+  });
+
+  // Keep same order as campaigns page (no sorting needed - using static data order)
+
+  // Filter by search term if provided
+  let filteredReports = reports;
+  if (search) {
+    const searchLower = search.toLowerCase();
+    filteredReports = reports.filter(report =>
+      report.campaignName.toLowerCase().includes(searchLower) ||
+      report.uniqueId.toLowerCase().includes(searchLower)
+    );
+  }
+
+  const total = filteredReports.length;
+  const pages = Math.ceil(total / limit);
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + limit;
+  const paginatedReports = filteredReports.slice(startIndex, endIndex);
+
+  return {
+    reports: paginatedReports,
+    pagination: {
+      page: page,
+      limit: limit,
+      total: total,
+      pages: pages,
+    }
+  };
+};
+
+// Get all delivery reports without pagination
+export const getAllDeliveryReports = () => {
+  const result = generateDeliveryReports({ page: 1, limit: 1000 });
+  return {
+    reports: result.reports,
+    total: result.pagination.total,
+  };
+};
+
+// Get a specific delivery report by ID (supports both _id and campaignId formats)
+export const getDeliveryReportById = (reportId) => {
+  const allReports = generateDeliveryReports({ page: 1, limit: 1000 }).reports;
+
+  // Find report by _id, campaignId, or uniqueId
+  return allReports.find(report =>
+    report._id === reportId ||
+    report.campaignId === reportId ||
+    report.uniqueId === reportId
+  ) || null;
+};
+
+// Generate campaign report overview data for a specific report
+export const generateCampaignReportOverview = (campaignId) => {
+  const report = getDeliveryReportById(campaignId);
+
+  if (!report) {
+    return null;
+  }
+
+  const seed = parseInt(campaignId.replace(/\D/g, ''), 10) || 12345;
+  const totalNumbers = report.totalNumbers;
+
+  // Calculate very positive stats
+  const pickupRate = report.status === 'completed'
+    ? 82 + Math.floor(seededRandom(seed * 7) * 13) // 82-95% for completed
+    : 75 + Math.floor(seededRandom(seed * 7) * 15); // 75-90% for others
+
+  const pickedUp = Math.floor(totalNumbers * pickupRate / 100);
+  const highEngagement = Math.floor(pickedUp * (0.70 + seededRandom(seed * 8) * 0.20)); // 70-90% of picked up have high engagement
+  const noOrMinimalEngagement = pickedUp - highEngagement;
+  const failedCalls = Math.floor(totalNumbers * (0.02 + seededRandom(seed * 9) * 0.05)); // Only 2-7% failed
+  const remaining = Math.max(0, totalNumbers - pickedUp - failedCalls);
+  const remainingPercent = totalNumbers > 0 ? Math.floor((remaining / totalNumbers) * 100) : 0;
+
+  // Generate phone number and user
+  const phoneNumber = `+91${String(9000000000 + (seed % 1000000000)).slice(0, 10)}`;
+  const userNames = ['Pratik Sharma', 'Raj Kumar', 'Aisha Patel', 'Vikram Singh', 'Priya Gupta'];
+  const userName = userNames[seed % userNames.length];
+  const userEmail = userName.toLowerCase().replace(' ', '.') + '@troika.tech';
+
+  return {
+    campaign: {
+      _id: report._id,
+      name: report.campaignName,
+      status: report.status,
+      totalContacts: totalNumbers,
+      phoneId: { number: phoneNumber },
+      userId: { name: userName, email: userEmail },
+      createdAt: report.createdAt,
+    },
+    overview: {
+      campaignTarget: totalNumbers,
+      attemptsMade: pickedUp + failedCalls,
+      pickupRate: { count: pickedUp, percentage: String(pickupRate) },
+      campaignCredits: report.usedCredits,
+      highEngagement: highEngagement,
+      noOrMinimalEngagement: noOrMinimalEngagement,
+      remaining: { count: remaining, percentage: String(remainingPercent) },
+      failedCalls: failedCalls,
+    },
+  };
+};
+
+// Generate campaign contacts for the analytics tab
+export const generateCampaignContacts = (campaignId, params = {}) => {
+  const report = getDeliveryReportById(campaignId);
+  if (!report) {
+    return { contacts: [], total: 0, page: 1, pages: 0 };
+  }
+
+  const page = params.page || 1;
+  const limit = params.limit || 25;
+  const seed = parseInt(campaignId.replace(/\D/g, ''), 10) || 12345;
+  const totalNumbers = report.totalNumbers;
+
+  // Generate ALL contacts matching the total (no cap)
+  const allContacts = [];
+  const failureReasons = ['No answer', 'Busy', null, null, null];
+
+  // Helper to generate random-looking phone numbers
+  const generatePhoneNumber = (contactSeed) => {
+    // Generate varied, random-looking Indian phone numbers
+    const prefixes = ['98', '99', '97', '96', '95', '94', '93', '91', '90', '88', '87', '86', '85', '84', '83', '82', '81', '80', '79', '78', '77', '76', '75', '74', '73', '72', '70'];
+    const prefixIndex = Math.floor(seededRandom(contactSeed * 11) * prefixes.length);
+    const prefix = prefixes[prefixIndex];
+
+    // Generate remaining 8 digits with more randomness
+    const d1 = Math.floor(seededRandom(contactSeed * 13) * 10);
+    const d2 = Math.floor(seededRandom(contactSeed * 17) * 10);
+    const d3 = Math.floor(seededRandom(contactSeed * 19) * 10);
+    const d4 = Math.floor(seededRandom(contactSeed * 23) * 10);
+    const d5 = Math.floor(seededRandom(contactSeed * 29) * 10);
+    const d6 = Math.floor(seededRandom(contactSeed * 31) * 10);
+    const d7 = Math.floor(seededRandom(contactSeed * 37) * 10);
+    const d8 = Math.floor(seededRandom(contactSeed * 41) * 10);
+
+    return `+91${prefix}${d1}${d2}${d3}${d4}${d5}${d6}${d7}${d8}`;
+  };
+
+  for (let i = 0; i < totalNumbers; i++) {
+    const contactSeed = seed * 1000 + i;
+    const statusRand = seededRandom(contactSeed);
+    let status;
+    // Very positive: 85% completed, only 15% other statuses
+    if (statusRand < 0.85) status = 'completed';
+    else if (statusRand < 0.92) status = 'no-answer';
+    else if (statusRand < 0.97) status = 'busy';
+    else status = 'failed';
+
+    // Higher interaction rate: 80% of completed calls have interaction
+    const hasInteraction = status === 'completed' && seededRandom(contactSeed * 2) > 0.2;
+    const phoneNumber = generatePhoneNumber(contactSeed);
+    const duration = status === 'completed'
+      ? Math.floor(30 + seededRandom(contactSeed * 3) * 180)
+      : 0;
+
+    const failureReason = status === 'failed' || status === 'no-answer' || status === 'busy'
+      ? failureReasons[Math.floor(seededRandom(contactSeed * 4) * failureReasons.length)]
+      : null;
+
+    // Generate call date within campaign date range
+    const reportDate = new Date(report.createdAt);
+    const callDate = new Date(reportDate.getTime() + (i * 60000)); // Spread calls over time
+
+    allContacts.push({
+      _id: `contact-${campaignId}-${i}`,
+      phoneNumber: phoneNumber,
+      status: status,
+      failureReason: failureReason,
+      duration: duration,
+      hasInteraction: hasInteraction,
+      recordingUrl: hasInteraction ? `https://recordings.example.com/${campaignId}/${i}.mp3` : null,
+      transcript: hasInteraction ? [{ role: 'agent', content: 'Hello, is this a good time?' }, { role: 'customer', content: 'Yes, please continue.' }] : [],
+      callDate: callDate.toISOString(),
+      createdAt: callDate.toISOString(),
+    });
+  }
+
+  // Apply filters
+  let filteredContacts = allContacts;
+
+  if (params.status) {
+    filteredContacts = filteredContacts.filter(c => c.status === params.status);
+  }
+
+  if (params.phoneNumbers && params.phoneNumbers.length > 0) {
+    filteredContacts = filteredContacts.filter(c =>
+      params.phoneNumbers.some(phone => c.phoneNumber.includes(phone))
+    );
+  }
+
+  if (params.hasInteraction !== undefined) {
+    filteredContacts = filteredContacts.filter(c => c.hasInteraction === params.hasInteraction);
+  }
+
+  const total = filteredContacts.length;
+  const pages = Math.ceil(total / limit);
+  const startIndex = (page - 1) * limit;
+  const paginatedContacts = filteredContacts.slice(startIndex, startIndex + limit);
+
+  return {
+    contacts: paginatedContacts,
+    total: total,
+    page: page,
+    pages: pages,
+  };
+};
+
+// Get unique phone numbers for a campaign's contacts
+export const getCampaignPhoneNumbers = (campaignId) => {
+  const contacts = generateCampaignContacts(campaignId, { page: 1, limit: 500 });
+  const phoneNumbers = [...new Set(contacts.contacts.map(c => c.phoneNumber))];
+  return {
+    phoneNumbers: phoneNumbers.slice(0, 100), // Limit to 100 unique numbers
+    total: phoneNumbers.length,
+  };
+};
+
 export default {
   generateCall,
   getCachedCall,
@@ -552,4 +877,10 @@ export default {
   generateCampaigns,
   generateDashboardAnalytics,
   generateWeeklyChartData,
+  generateDeliveryReports,
+  getAllDeliveryReports,
+  getDeliveryReportById,
+  generateCampaignReportOverview,
+  generateCampaignContacts,
+  getCampaignPhoneNumbers,
 };

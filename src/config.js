@@ -27,13 +27,13 @@ const LIVE_BACKEND_URL = 'https://calling-api.0804.in';
  */
 const getWsUrl = () => {
   const apiUrl = getApiBaseUrl();
-  
+
   if (!apiUrl) {
     // Local development with vite proxy - use same host with ws protocol
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${protocol}//${window.location.host}`;
   }
-  
+
   // Convert http(s) URL to ws(s) URL
   return apiUrl.replace(/^http/, 'ws');
 };
@@ -53,7 +53,7 @@ const getApiBaseUrl = () => {
       return LIVE_BACKEND_URL;
     }
   }
-  
+
   // Production: Always use live backend
   return LIVE_BACKEND_URL;
 };
@@ -66,19 +66,19 @@ const config = {
   isDevelopment,
   isProduction,
   mode: isDevelopment ? 'development' : 'production',
-  
+
   // API Configuration
   apiBaseUrl: getApiBaseUrl(),
-  
+
   // WebSocket Configuration
   wsBaseUrl: getWsUrl(),
-  
+
   // Demo Mode Configuration
-  demoMode: true, // Change to false to use real API
+  demoMode: false, // Change to false to use real API
   demo: {
     // Exhibition stats (realistic numbers for showcase)
     totalCalls: 119847,        // Changed from 120000
-    totalCampaigns: 43,         // Changed from 45
+    totalCampaigns: 85,         // Expanded from 43 to 85
     realRecordingsCount: 40,    // Keep this
 
     // Performance metrics (optimized for exhibition impression)
@@ -94,14 +94,14 @@ const config = {
     dataStartDate: '2024-10-17', // Keep
     dataEndDate: '2026-01-17',   // Keep
   },
-  
+
   // Feature Flags
   features: {
     enableAnalytics: true,
     enableLiveStatus: true,
     enableCallRecording: true,
   },
-  
+
   // API Endpoints (relative to apiBaseUrl)
   endpoints: {
     auth: '/api/v1/auth',
@@ -112,7 +112,7 @@ const config = {
     agents: '/api/v1/agents',
     phones: '/api/v1/phones',
   },
-  
+
   // Logging
   enableLogging: isDevelopment, // Only log in development
 };

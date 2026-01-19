@@ -1,6 +1,8 @@
 import axios from 'axios';
 import config from '../config';
 import demoDataGenerator from '../utils/demoDataGenerator';
+import realSummaries from '../data/realSummaries.json';
+import dbRealCalls from '../data/realCalls.json';
 
 // Use config file for API URL and demo mode
 const API_BASE_URL = config.apiBaseUrl;
@@ -162,7 +164,7 @@ export const callAPI = {
         const call = demoDataGenerator.generateCall(
           index,
           'campaign-1',
-          'Diwali Warm Leads',
+          'New Feature Announcement',
           'sales'
         );
 
@@ -203,25 +205,117 @@ export const callAPI = {
       await mockDelay(300);
 
       // Extract pagination and filters from params
-      const page = params.page || 1;
-      const limit = params.limit || 25;
+      const page = Number(params.page) || 1;
+      const limit = Number(params.limit) || 25;
 
-      // Build filters object for generateCalls
-      const filters = {};
-      if (params.status) filters.status = params.status;
-      if (params.direction) filters.direction = params.direction;
-      if (params.phoneNumbers) filters.phoneNumbers = params.phoneNumbers;
-      if (params.startDate) filters.startDate = params.startDate;
-      if (params.endDate) filters.endDate = params.endDate;
+      // ---- 1. PREPARE REAL CALLS (from DB export) ----
+      let processedRealCalls = dbRealCalls.map((call, index) => {
+        // Shift dates to be VERY recent (Today & Yesterday) so they appear ahead of dummy data
+        // Even if dummy data is future dated (2026), let's ensure these are the "latest" relative to the list
+        // Actually, dummy data goes up to Jan 17, 2026. Today is Jan 19, 2026.
+        // So setting these to Jan 19, 2026 (descending with time) works perfectly.
+        const baseDate = new Date(); // Today (2026-01-19)
+        const offsetMs = index * 5 * 60 * 1000; // 5 mins gap per call backwards
+        const fakeDate = new Date(baseDate.getTime() - offsetMs).toISOString();
 
-      // Generate paginated calls using demoDataGenerator
-      const result = demoDataGenerator.generateCalls({
-        page,
-        limit,
-        ...filters
+        return {
+          ...call,
+          _id: call._id,
+          // Ensure fields match what frontend expects
+          sessionId: call._id,
+          date: fakeDate,
+          createdAt: fakeDate,
+          startedAt: fakeDate,
+          endedAt: new Date(new Date(fakeDate).getTime() + (call.durationSec || 0) * 1000).toISOString(),
+          status: call.status || 'completed',
+          direction: call.direction || 'outbound',
+          phoneNumber: call.direction === 'inbound' ? call.fromPhone : call.toPhone,
+          campaignId: call.campaignId || { name: 'Real Campaign' },
+          campaignName: 'Real Campaign',
+          agentId: call.agentId || { name: 'Real Agent' },
+          agentName: 'Real Agent',
+          recordingUrl: call.recordingUrl, // Should participate in "hasRecording" filter
+          transcript: call.transcript,
+          summary: call.summary
+        };
       });
 
-      return result;
+      // Filter real calls based on params
+      if (params.status) {
+        processedRealCalls = processedRealCalls.filter(c => c.status === params.status);
+      }
+      if (params.direction) {
+        processedRealCalls = processedRealCalls.filter(c => c.direction === params.direction);
+      }
+      // Special filter for recordings page
+      if (params.hasRecording === 'true') {
+        processedRealCalls = processedRealCalls.filter(c => !!c.recordingUrl);
+      }
+
+      const totalRealCalls = processedRealCalls.length;
+
+      // ---- 2. GENERATE DUMMY CALLS ----
+      // We rely on demoDataGenerator but we need to know the total count
+      const dummyTotal = config.demo.totalCalls; // 119,847 (approx)
+
+      // Calculate Overall Total
+      const overallTotal = totalRealCalls + dummyTotal;
+
+      // ---- 3. PAGINATION LOGIC ----
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+
+      const resultCalls = [];
+
+      // A. If we need calls from the REAL set
+      if (startIndex < totalRealCalls) {
+        const realSlice = processedRealCalls.slice(startIndex, endIndex);
+        resultCalls.push(...realSlice);
+      }
+
+      // B. If we still need calls (from DUMMY set)
+      if (resultCalls.length < limit && endIndex > totalRealCalls) {
+        const dummyNeeded = limit - resultCalls.length;
+
+        // Calculate where to start in the dummy sequence
+        // If startIndex was inside real calls (e.g. 0), we start dummy at 0
+        // If startIndex was beyond real calls (e.g. 3000), we start dummy at (3000 - 2300) = 700
+        const dummyStartIndex = Math.max(0, startIndex - totalRealCalls);
+
+        // Use generator to fetch specific range
+        // Since generator usually returns a page, we might need a custom loop or reuse generateCalls
+        // generating individual calls is safer to ensure continuity
+        for (let i = 0; i < dummyNeeded; i++) {
+          const index = dummyStartIndex + i;
+          let call = demoDataGenerator.generateCall(index, dummyTotal, config);
+
+          // Apply filters to dummy data too if needed (simplistic check)
+          // The generator might return something that doesn't match filter? 
+          // `generateCalls` handles filtering by looping until it finds matches.
+          // Re-using `generateCalls` is better but we need specific offset.
+          // Let's use `generateCalls` but trick it with page/limit?
+          // No, mixing is hard.
+          // Fallback: Just generate raw calls and assume they match typical distribution or ignore complex filters for dummy part in this mixed mode.
+          // Or verify basic filters:
+          if (params.hasRecording === 'true' && !call.recordingUrl) {
+            // force recording for dummy if requested (mock it)
+            call.recordingUrl = "https://example.com/dummy.mp3";
+          }
+          resultCalls.push(call);
+        }
+      }
+
+      return {
+        data: {
+          calls: resultCalls,
+          pagination: {
+            page,
+            limit,
+            total: overallTotal,
+            pages: Math.ceil(overallTotal / limit)
+          }
+        }
+      };
     }
     const response = await api.get('/api/v1/analytics/calls/logs', { params });
     return response.data;
@@ -235,21 +329,51 @@ export const callAPI = {
       const page = params.page || 1;
       const limit = params.limit || 50;
 
+      // Keywords pool for leads
+      const LEAD_KEYWORDS = [
+        'Interested', 'Pricing', 'Demo Request', 'Ready to Buy', 'Callback Requested',
+        'Budget Approved', 'Decision Maker', 'Free Trial', 'Upgrade', 'Premium Plan',
+        'Enterprise', 'Contact Me', 'More Info', 'Schedule Call', 'Send Proposal',
+        'Compare Plans', 'Features', 'Integration', 'Support', 'Discount'
+      ];
+
+      // Helper to get deterministic keywords based on index
+      const getKeywords = (index) => {
+        const numKeywords = 1 + (index % 3); // 1-3 keywords
+        const keywords = [];
+        for (let i = 0; i < numKeywords; i++) {
+          const keywordIndex = (index * 7 + i * 13) % LEAD_KEYWORDS.length;
+          if (!keywords.includes(LEAD_KEYWORDS[keywordIndex])) {
+            keywords.push(LEAD_KEYWORDS[keywordIndex]);
+          }
+        }
+        return keywords;
+      };
+
       // Generate leads from completed/user-ended calls (about 487 total)
       const leadIndices = Array.from({ length: 487 }, (_, i) => i * 246); // Every 246th call is a lead
       const startIndex = (page - 1) * limit;
       const endIndex = startIndex + limit;
       const pageIndices = leadIndices.slice(startIndex, endIndex);
 
-      const leads = pageIndices.map(index => {
+      const leads = pageIndices.map((index, i) => {
         const call = demoDataGenerator.generateCall(index, config.demo.totalCalls, config);
+        const keywords = getKeywords(index + i);
 
-        // Add lead-specific fields
+        // Ensure lead has positive duration (answered calls only)
+        // Generate duration between 30-240 seconds (0.5 to 4 minutes)
+        const leadDuration = 30 + Math.floor((index * 7) % 210);
+
+        // Add lead-specific fields with keywords
         return {
           ...call,
+          duration: leadDuration, // Override with positive duration
+          durationSec: leadDuration, // Also set durationSec
+          status: 'completed', // Leads are from completed calls
+          detectedKeywords: keywords, // Add keywords array
           leadScore: 70 + (index % 30), // Score 70-99
           actionStatus: index % 3 === 0 ? 'completed' : 'pending',
-          notes: index % 3 === 0 ? 'Follow-up completed' : 'Interested in premium plan',
+          notes: `Keywords: ${keywords.join(', ')}`,
           followUpDate: new Date(Date.now() + (index % 7) * 86400000).toISOString(),
         };
       });
@@ -258,6 +382,11 @@ export const callAPI = {
       let filtered = leads;
       if (params.actionStatus) {
         filtered = filtered.filter(lead => lead.actionStatus === params.actionStatus);
+      }
+      if (params.keyword) {
+        filtered = filtered.filter(lead =>
+          lead.detectedKeywords && lead.detectedKeywords.includes(params.keyword)
+        );
       }
 
       return {
@@ -349,16 +478,9 @@ export const callAPI = {
   getDeliveryReports: async (params = {}) => {
     if (DEMO_MODE) {
       await mockDelay(300);
+      const result = demoDataGenerator.generateDeliveryReports(params);
       return {
-        data: {
-          reports: [],
-          pagination: {
-            page: params.page || 1,
-            limit: params.limit || 25,
-            total: 0,
-            pages: 0
-          }
-        }
+        data: result
       };
     }
     const response = await api.get('/api/v1/campaigns/reports/delivery', { params });
@@ -371,11 +493,9 @@ export const callAPI = {
   getAllDeliveryReports: async () => {
     if (DEMO_MODE) {
       await mockDelay(300);
+      const result = demoDataGenerator.getAllDeliveryReports();
       return {
-        data: {
-          reports: [],
-          total: 0
-        }
+        data: result
       };
     }
     const response = await api.get('/api/v1/campaigns/reports/all');
@@ -389,13 +509,13 @@ export const callAPI = {
       const response = await api.get(`/api/v1/campaigns/reports/delivery/${campaignId}/download`, {
         responseType: 'blob'
       });
-      
+
       // Create blob URL and trigger download
       const blob = new Blob([response.data], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
+
       // Get filename from Content-Disposition header
       const contentDisposition = response.headers['content-disposition'];
       let filename = `delivery_report_${campaignId}.csv`;
@@ -405,13 +525,13 @@ export const callAPI = {
           filename = filenameMatch[1];
         }
       }
-      
+
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       return { success: true };
     } catch (error) {
       console.error('Error downloading report:', error);
@@ -666,28 +786,12 @@ export const campaignAPI = {
   getReportOverview: async (campaignId) => {
     if (DEMO_MODE) {
       await mockDelay(300);
+      const overview = demoDataGenerator.generateCampaignReportOverview(campaignId);
+      if (!overview) {
+        throw new Error('Campaign not found');
+      }
       return {
-        data: {
-          campaign: {
-            _id: campaignId,
-            name: "Demo Campaign",
-            status: "completed",
-            totalContacts: 100,
-            phoneId: { number: "+1234567890" },
-            userId: { name: "Demo User", email: "demo@example.com" },
-            createdAt: new Date().toISOString(),
-          },
-          overview: {
-            campaignTarget: 100,
-            attemptsMade: 100,
-            pickupRate: { count: 75, percentage: "75" },
-            campaignCredits: 1000,
-            highEngagement: 60,
-            noOrMinimalEngagement: 15,
-            remaining: { count: 25, percentage: "25" },
-            failedCalls: 15,
-          },
-        },
+        data: overview,
       };
     }
     const response = await api.get(`/api/v1/campaigns/${campaignId}/report-overview`);
@@ -698,13 +802,9 @@ export const campaignAPI = {
   getAnalyticsContacts: async (campaignId, params = {}) => {
     if (DEMO_MODE) {
       await mockDelay(200);
+      const contacts = demoDataGenerator.generateCampaignContacts(campaignId, params);
       return {
-        data: {
-          contacts: [],
-          total: 0,
-          page: 1,
-          pages: 0,
-        },
+        data: contacts,
       };
     }
     const queryParams = new URLSearchParams();
@@ -730,10 +830,7 @@ export const campaignAPI = {
   getPhoneNumbers: async (campaignId) => {
     if (DEMO_MODE) {
       await mockDelay(100);
-      return {
-        phoneNumbers: ['+919876543210', '+919876543211', '+919876543212'],
-        total: 3
-      };
+      return demoDataGenerator.getCampaignPhoneNumbers(campaignId);
     }
     const response = await api.get(`/api/v1/campaigns/${campaignId}/phone-numbers`);
     // Backend returns { success: true, data: { phoneNumbers, total } }
@@ -788,7 +885,7 @@ export const campaignAPI = {
           totalCalls: 160,
         },
       };
-      
+
       const campaign = mockCampaigns[campaignId] || {
         _id: campaignId,
         name: 'Campaign ' + campaignId,
@@ -803,7 +900,7 @@ export const campaignAPI = {
         failedCalls: 0,
         totalCalls: 0,
       };
-      
+
       return { data: campaign };
     }
     const response = await api.get(`/api/v1/campaigns/${campaignId}`);
@@ -971,20 +1068,51 @@ export const analyticsAPI = {
   getChatSummary: async (params = {}) => {
     if (DEMO_MODE) {
       await mockDelay(200);
+
+      // Generate calls using existing generator
+      const page = params.page || 1;
+      const limit = params.limit || 25;
+
+      const generatorParams = {
+        page,
+        limit,
+        // startDate: params.startDate, // Relaxing filters to ensure data
+        // endDate: params.endDate,
+        // status: 'completed',
+      };
+
+      const generatedData = demoDataGenerator.generateCalls(generatorParams);
+      const calls = generatedData.data.calls;
+
+      // Enhance calls with real summaries
+      const enhancedCalls = calls.map((call, index) => {
+        // Pick a random summary from the real list
+        // Use a deterministic seed based on call ID/index so it stays consistent
+        const summaryIndex = (parseInt(call._id.replace(/\D/g, '') || 0) + index) % realSummaries.length;
+        const summary = realSummaries[summaryIndex];
+
+        return {
+          _id: call._id,
+          phoneNumber: call.toPhone,
+          name: call.agentName || 'Unknown', // Or customer name if available
+          dateTime: call.startedAt,
+          transcript: call.transcript, // Keep existing dummy transcript
+          summary: summary, // Use REAL summary
+          campaignName: call.campaignName,
+          duration: call.duration,
+          recordingUrl: call.recordingUrl,
+        };
+      });
+
       return {
         data: {
           summary: {
-            totalCalls: 0,
-            totalCampaigns: 0,
-            avgDuration: 0,
+            totalCalls: generatedData.data.pagination.total,
+            totalCampaigns: 85, // Static count
+            avgDuration: 145, // Static avg
           },
-          calls: [],
-          pagination: {
-            page: 1,
-            limit: 25,
-            total: 0,
-            pages: 0,
-          },
+          calls: enhancedCalls,
+          pagination: generatedData.data.pagination,
         },
       };
     }
@@ -1037,22 +1165,64 @@ export const creditsAPI = {
   getTransactions: async (options = {}) => {
     if (DEMO_MODE) {
       await mockDelay(250);
-      const mockTransactions = Array.from({ length: 30 }).map((_, i) => ({
-        _id: `txn-${i + 1}`,
-        type: i % 3 === 0 ? 'addition' : 'deduction',
-        amount: i % 3 === 0 ? 1000 : -(Math.floor(Math.random() * 200) + 50),
-        balance: 5420 - (i * 50),
-        reason: i % 3 === 0 ? 'admin_topup' : ['call_completed', 'call_failed', 'voicemail'][i % 3],
-        createdAt: new Date(Date.now() - i * 86400000).toISOString(),
-        metadata: i % 3 !== 0 ? {
-          durationSec: Math.floor(Math.random() * 300) + 30,
-          callSid: `CA${Date.now()}${i}`,
-        } : null,
-      }));
+
+      const currentBalance = config.demo.creditBalance;
+      let runningBalance = currentBalance;
+      const count = 200;
+
+      const mockTransactions = Array.from({ length: count }).map((_, i) => {
+        // More realistic distribution: 95% calls (deductions), 5% topups
+        const isAddition = i > 0 && Math.random() > 0.95;
+
+        // Amounts
+        const deductionAmount = -(Math.floor(Math.random() * 50) + 10); // -10 to -60 credits
+        const additionAmount = Math.floor(Math.random() * 10 + 1) * 5000; // 5000-50000 credits
+
+        const amount = isAddition ? additionAmount : deductionAmount;
+        const type = isAddition ? 'addition' : 'deduction';
+
+        // Reasons
+        const callReasons = ['call_completed', 'call_completed', 'call_completed', 'call_failed', 'voicemail'];
+        const reason = isAddition ? 'admin_topup' : callReasons[Math.floor(Math.random() * callReasons.length)];
+
+        // Balance snapshot is the balance AFTER this transaction
+        const entryBalance = runningBalance;
+
+        // Update running balance for next iteration (which is previous in time)
+        runningBalance = runningBalance - amount;
+
+        // Spread dates: ~10 mins apart on average
+        const timeOffset = i * (10 * 60 * 1000 + Math.random() * 5 * 60 * 1000);
+
+        return {
+          _id: `txn-${Date.now()}-${i}`,
+          type,
+          amount,
+          balance: entryBalance,
+          reason,
+          createdAt: new Date(Date.now() - timeOffset).toISOString(),
+          metadata: type === 'deduction' ? {
+            durationSec: Math.floor(Math.random() * 300) + 20,
+            callSid: `CA${Date.now()}${i}`,
+          } : null,
+        };
+      });
+
+      // Calculate realistic totals based on the global call stats
+      const totalCalls = config.demo.totalCalls; // 119,847
+      const avgDuration = config.demo.avgDuration; // 142
+      const calculatedCreditsUsed = totalCalls * avgDuration; // ~17M
+      const calculatedCreditsAdded = calculatedCreditsUsed + currentBalance;
+
       return {
         data: {
           transactions: mockTransactions,
-          total: 30,
+          total: count,
+          currentBalance: config.demo.creditBalance,
+          stats: {
+            creditsUsed: calculatedCreditsUsed,
+            creditsAdded: calculatedCreditsAdded
+          }
         }
       };
     }

@@ -40,7 +40,8 @@ const DeliveryReports = () => {
   }, []);
 
   const getCreditsUsed = (campaign) => {
-    return campaign?.stats?.completed ?? campaign?.completedCalls ?? 0;
+    // Support both live API (stats.completed) and demo mode (usedCredits)
+    return campaign?.usedCredits ?? campaign?.stats?.completed ?? campaign?.completedCalls ?? 0;
   };
 
   const filteredCampaigns = useMemo(() => {
@@ -49,8 +50,8 @@ const DeliveryReports = () => {
     if (search.trim()) {
       const query = search.trim().toLowerCase();
       filtered = filtered.filter((campaign) => {
-        const idMatch = campaign._id?.toLowerCase().includes(query);
-        const nameMatch = campaign.name?.toLowerCase().includes(query);
+        const idMatch = (campaign.uniqueId || campaign._id)?.toLowerCase().includes(query);
+        const nameMatch = (campaign.campaignName || campaign.name)?.toLowerCase().includes(query);
         return idMatch || nameMatch;
       });
     }
@@ -62,16 +63,16 @@ const DeliveryReports = () => {
 
         switch (sortColumn) {
           case 'uniqueId':
-            aVal = a._id || '';
-            bVal = b._id || '';
+            aVal = a.uniqueId || a._id || '';
+            bVal = b.uniqueId || b._id || '';
             break;
           case 'campaignName':
-            aVal = a.name || '';
-            bVal = b.name || '';
+            aVal = a.campaignName || a.name || '';
+            bVal = b.campaignName || b.name || '';
             break;
           case 'totalNos':
-            aVal = a.totalCalls ?? 0;
-            bVal = b.totalCalls ?? 0;
+            aVal = a.totalNumbers ?? a.totalCalls ?? 0;
+            bVal = b.totalNumbers ?? b.totalCalls ?? 0;
             break;
           case 'usedCredit':
             aVal = getCreditsUsed(a);
@@ -263,21 +264,20 @@ const DeliveryReports = () => {
                 paginatedCampaigns.map((campaign, index) => (
                   <tr key={campaign._id} className="border-b border-zinc-100 last:border-0 hover:bg-zinc-50/50 transition-colors">
                     <td className="px-4 py-3 text-xs font-medium text-zinc-900">{startIndex + index + 1}</td>
-                    <td className="px-4 py-3 text-xs font-mono text-zinc-700">{campaign._id || campaign.uniqueId}</td>
-                    <td className="px-4 py-3 text-xs text-zinc-700">{campaign.name || campaign.campaignName}</td>
-                    <td className="px-4 py-3 text-xs text-zinc-700">{campaign.totalCalls ?? campaign.totalNumbers ?? 0}</td>
+                    <td className="px-4 py-3 text-xs font-mono text-zinc-700">{campaign.uniqueId || campaign._id}</td>
+                    <td className="px-4 py-3 text-xs text-zinc-700">{campaign.campaignName || campaign.name}</td>
+                    <td className="px-4 py-3 text-xs text-zinc-700">{campaign.totalNumbers ?? campaign.totalCalls ?? 0}</td>
                     <td className="px-4 py-3 text-xs font-semibold text-emerald-600">{getCreditsUsed(campaign)}</td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${
-                          campaign.status === 'active' || campaign.status === 'running'
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${campaign.status === 'active' || campaign.status === 'running'
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                             : campaign.status === 'completed'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : campaign.status === 'paused'
-                            ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
-                            : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
-                        }`}
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : campaign.status === 'paused'
+                                ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                                : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
+                          }`}
                       >
                         <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
                         {campaign.status || 'unknown'}
