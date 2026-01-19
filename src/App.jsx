@@ -96,34 +96,14 @@ function App() {
     fetchFreshUserData();
   }, []);
 
-  // Initialize push notifications after user is loaded
+  // Cleanup push notifications on unmount
   useEffect(() => {
-    const initPushNotifications = async () => {
-      const token = localStorage.getItem('authToken');
-
-      // Only initialize if user is authenticated and on mobile platform
-      if (token && isMobilePlatform()) {
-        try {
-          console.log('[App] Initializing push notifications...');
-          await pushNotificationService.initialize();
-        } catch (error) {
-          console.error('[App] Failed to initialize push notifications:', error);
-        }
-      }
-    };
-
-    // Wait for permissions to load before initializing
-    if (permissionsLoaded && user) {
-      initPushNotifications();
-    }
-
-    // Cleanup on unmount
     return () => {
       if (isMobilePlatform()) {
         pushNotificationService.cleanup();
       }
     };
-  }, [permissionsLoaded, user]);
+  }, []);
 
   return (
 

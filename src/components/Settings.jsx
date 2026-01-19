@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FaCreditCard, FaCoins, FaCheckCircle, FaSpinner } from 'react-icons/fa';
+import { FaCreditCard, FaCoins, FaCheckCircle, FaSpinner, FaBell } from 'react-icons/fa';
 import { creditsAPI, authAPI } from '../services/api';
+import { pushNotificationService } from '../services/pushNotifications';
+import { isMobilePlatform } from '../utils/platform';
 
 const Settings = () => {
   const [settings, setSettings] = useState({
@@ -18,11 +20,69 @@ const Settings = () => {
   });
   const [loadingCredits, setLoadingCredits] = useState(true);
   const [loadingBilling, setLoadingBilling] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [showNotificationSection, setShowNotificationSection] = useState(false);
 
   useEffect(() => {
     fetchCreditData();
     fetchBillingData();
+    checkNotificationStatus();
   }, []);
+
+  const checkNotificationStatus = async () => {
+    // Only show notification section on mobile platforms
+    if (!isMobilePlatform()) {
+      setShowNotificationSection(false);
+      return;
+    }
+
+    setShowNotificationSection(true);
+
+    if (!pushNotificationService.isSupported()) {
+      return;
+    }
+
+    try {
+      const permissions = await pushNotificationService.checkPermissions();
+      setNotificationsEnabled(permissions.receive === 'granted');
+    } catch (error) {
+      console.error('Error checking notification permissions:', error);
+    }
+  };
+
+  const handleToggleNotifications = async () => {
+    if (notificationsLoading) return;
+
+    setNotificationsLoading(true);
+
+    try {
+      if (!notificationsEnabled) {
+        // Request permission and initialize
+        await pushNotificationService.initialize();
+
+        // Check if permission was granted
+        const permissions = await pushNotificationService.checkPermissions();
+        const granted = permissions.receive === 'granted';
+        setNotificationsEnabled(granted);
+
+        if (granted) {
+          console.log('Notifications enabled successfully');
+        } else {
+          console.log('Notification permission denied');
+        }
+      } else {
+        // User wants to disable - we can't revoke permission, but we can unregister the token
+        await pushNotificationService.unregisterDeviceToken();
+        setNotificationsEnabled(false);
+        console.log('Notifications disabled');
+      }
+    } catch (error) {
+      console.error('Error toggling notifications:', error);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
 
   const fetchCreditData = async () => {
     try {
@@ -309,6 +369,76 @@ const Settings = () => {
           </div>
         </div>
       </div>
+
+      {/* Notification Settings - Only shown on mobile */}
+      {showNotificationSection && (
+        <div className="glass-card p-6 space-y-6">
+          <div className="flex items-center gap-3 border-b border-zinc-200 pb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-50">
+              <FaBell className="text-lg text-purple-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-800">Push Notifications</h2>
+              <p className="text-xs text-zinc-500">Get notified about campaign updates</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-lg">
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-zinc-800">Enable Notifications</h3>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Receive updates when campaigns start, complete, or encounter issues
+                </p>
+              </div>
+              <button
+                onClick={handleToggleNotifications}
+                disabled={notificationsLoading}
+                className={`
+                  relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2
+                  ${notificationsEnabled ? 'bg-purple-600' : 'bg-zinc-300'}
+                  ${notificationsLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                `}
+              >
+                <span
+                  className={`
+                    inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+                    ${notificationsEnabled ? 'translate-x-6' : 'translate-x-1'}
+                  `}
+                />
+              </button>
+            </div>
+
+            {notificationsEnabled && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <FaCheckCircle className="text-green-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-green-800">Notifications Active</p>
+                    <p className="text-xs text-green-700 mt-1">
+                      You'll receive push notifications for campaign updates and important alerts.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!notificationsEnabled && !notificationsLoading && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <FaBell className="text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">Notifications Disabled</p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Enable notifications to stay updated on your campaigns.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
