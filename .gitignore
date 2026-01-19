@@ -32,3 +32,6 @@ dist-ssr
 
 # Capacitor
 .capacitor
+
+# Firebase credentials
+google-services.json
