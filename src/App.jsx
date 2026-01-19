@@ -29,6 +29,9 @@ import ScheduledCalls from './components/ScheduledCalls';
 import AppointmentBooking from './components/AppointmentBooking';
 import InactivityTracker from './components/InactivityTracker';
 import { authAPI } from './services/api';
+import { pushNotificationService } from './services/pushNotifications';
+import { isMobilePlatform } from './utils/platform';
+import BottomNav from './components/mobile/BottomNav';
 
 // User Context for sharing user data (including permissions) across components
 const UserContext = createContext(null);
@@ -60,16 +63,16 @@ function App() {
       try {
         console.log('[App] Fetching fresh user data...');
         const response = await authAPI.getCurrentUser();
-        
+
         if (response.success && response.data?.user) {
           const freshUser = response.data.user;
           console.log('[App] Fresh user data received:', freshUser);
           console.log('[App] Permissions:', freshUser.permissions);
-          
+
           // Update localStorage with fresh data
           localStorage.setItem('user', JSON.stringify(freshUser));
           setUser(freshUser);
-          
+
           // Dispatch storage event to notify Sidebar
           window.dispatchEvent(new StorageEvent('storage', {
             key: 'user',
@@ -92,6 +95,35 @@ function App() {
 
     fetchFreshUserData();
   }, []);
+
+  // Initialize push notifications after user is loaded
+  useEffect(() => {
+    const initPushNotifications = async () => {
+      const token = localStorage.getItem('authToken');
+
+      // Only initialize if user is authenticated and on mobile platform
+      if (token && isMobilePlatform()) {
+        try {
+          console.log('[App] Initializing push notifications...');
+          await pushNotificationService.initialize();
+        } catch (error) {
+          console.error('[App] Failed to initialize push notifications:', error);
+        }
+      }
+    };
+
+    // Wait for permissions to load before initializing
+    if (permissionsLoaded && user) {
+      initPushNotifications();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (isMobilePlatform()) {
+        pushNotificationService.cleanup();
+      }
+    };
+  }, [permissionsLoaded, user]);
 
   return (
 
@@ -136,7 +168,7 @@ function App() {
       <div className="h-screen bg-gradient-to-b from-zinc-50 via-slate-50 to-slate-100 text-zinc-900 flex flex-col overflow-hidden">
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Mobile Header - Only visible on mobile */}
-          <header className="lg:hidden fixed top-0 left-0 right-0 h-16 border-b border-zinc-200 bg-white/80 backdrop-blur-xl flex items-center justify-between px-4 shadow-sm shadow-black/5 z-[60]">
+          <header className="lg:hidden fixed top-0 left-0 right-0 border-b border-zinc-200 bg-white/80 backdrop-blur-xl flex items-center justify-between px-4 shadow-sm shadow-black/5 z-[60]" style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(4rem + env(safe-area-inset-top))' }}>
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 bg-white shadow-sm"
@@ -198,7 +230,7 @@ function App() {
             </header>
 
             {/* Content */}
-            <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 md:px-6 pt-20 pb-4 md:pt-8 md:pb-6 lg:pt-6">
+            <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 md:px-6 md:pt-8 md:pb-6 lg:pt-6 lg:pb-6" style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top))', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
           <Routes>
 
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -226,6 +258,9 @@ function App() {
             </main>
           </div>
         </div>
+
+        {/* Mobile Bottom Navigation - Only visible on mobile */}
+        <BottomNav />
       </div>
       )}
       </UserContext.Provider>

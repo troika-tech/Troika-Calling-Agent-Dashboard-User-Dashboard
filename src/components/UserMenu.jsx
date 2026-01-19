@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { FaCog, FaSignOutAlt, FaUser } from 'react-icons/fa';
 import { authAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { pushNotificationService } from '../services/pushNotifications';
+import { isMobilePlatform } from '../utils/platform';
 
 const UserMenu = () => {
   const [open, setOpen] = useState(false);
@@ -30,6 +32,16 @@ const UserMenu = () => {
 
   const performLogout = async () => {
     try {
+      // Unregister push notifications device token if on mobile
+      if (isMobilePlatform()) {
+        try {
+          await pushNotificationService.unregisterDeviceToken();
+        } catch (error) {
+          console.error('Failed to unregister device token:', error);
+          // Continue with logout even if unregistration fails
+        }
+      }
+
       // Call backend logout API to invalidate token
       await authAPI.logout();
     } catch (error) {
@@ -42,6 +54,8 @@ const UserMenu = () => {
       localStorage.removeItem('user');
       localStorage.removeItem('agentId');
       localStorage.removeItem('phoneId');
+      localStorage.removeItem('fcmToken');
+      localStorage.removeItem('fcmTokenRegistered');
       setOpen(false);
       navigate('/login');
     }
