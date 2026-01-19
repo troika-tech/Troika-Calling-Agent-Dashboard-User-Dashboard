@@ -5,10 +5,11 @@ const config: CapacitorConfig = {
   appName: 'Calling Dashboard',
   webDir: 'dist',
   server: {
-    androidScheme: 'https',
-    cleartext: true // Allow HTTP for development
+    androidScheme: 'https'
   },
   plugins: {
+    // Note: Push notifications require google-services.json file in android/app/ directory
+    // Download from Firebase Console and place in the correct location for push notifications to work
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"]
     },
