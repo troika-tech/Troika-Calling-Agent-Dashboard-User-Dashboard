@@ -7,7 +7,6 @@
   "dependencies": {
     "@capacitor/android": "^8.0.1",
     "@capacitor/app": "^8.0.0",
-    "@capacitor/cli": "^8.0.1",
     "@capacitor/core": "^8.0.1",
     "@capacitor/network": "^8.0.0",
     "@capacitor/push-notifications": "^8.0.0",
@@ -22,6 +21,7 @@
     "recharts": "^2.10.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.0.1",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32",
@@ -31,6 +31,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap:sync": "cap sync",
+    "cap:open:android": "cap open android",
+    "cap:run:android": "cap run android",
+    "mobile:build": "npm run build && cap sync"
   }
 }
