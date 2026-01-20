@@ -2,7 +2,7 @@ import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.troika.callingdashboard',
-  appName: 'Calling Dashboard',
+  appName: 'Troika Tech AI Calling',
   webDir: 'dist',
   server: {
     androidScheme: 'https'

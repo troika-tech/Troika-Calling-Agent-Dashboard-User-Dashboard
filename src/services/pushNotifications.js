@@ -238,6 +238,8 @@ class PushNotificationService {
         type: data.type,
         campaignId: data.campaignId,
         campaignName: data.campaignName,
+        phoneNumber: data.phoneNumber,
+        sessionId: data.sessionId,
         action: data.action,
         data: data,
       },
@@ -253,9 +255,24 @@ class PushNotificationService {
         // Navigate to campaigns list
         window.location.href = '/campaigns';
       }
+    } else if (data.type === 'new_lead') {
+      // Navigate to leads page
+      if (data.sessionId) {
+        // Navigate to specific lead details if sessionId provided
+        window.location.href = `/leads?session=${data.sessionId}`;
+      } else {
+        // Navigate to leads list
+        window.location.href = '/leads';
+      }
     } else if (data.type === 'daily_report' || data.type === 'weekly_report') {
       // Navigate to analytics/dashboard
       window.location.href = '/analytics';
+    } else if (data.type === 'test') {
+      // Navigate to dashboard for test notifications
+      window.location.href = '/dashboard';
+    } else if (data.route) {
+      // Fallback: use route from data if provided
+      window.location.href = data.route;
     } else {
       // Default: navigate to dashboard
       window.location.href = '/dashboard';

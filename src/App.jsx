@@ -27,7 +27,6 @@ import CampaignReportDetail from './components/CampaignReportDetail';
 import Settings from './components/Settings';
 import ScheduledCalls from './components/ScheduledCalls';
 import AppointmentBooking from './components/AppointmentBooking';
-import InactivityTracker from './components/InactivityTracker';
 import { authAPI } from './services/api';
 import { pushNotificationService } from './services/pushNotifications';
 import { isMobilePlatform } from './utils/platform';
@@ -123,7 +122,6 @@ function App() {
           path="/*"
           element={
             <ProtectedRoute>
-      <InactivityTracker>
       <UserContext.Provider value={{ user, permissionsLoaded }}>
       
       {/* Loading Screen - Show until permissions are loaded */}
@@ -244,7 +242,6 @@ function App() {
       </div>
       )}
       </UserContext.Provider>
-      </InactivityTracker>
             </ProtectedRoute>
           }
         />
