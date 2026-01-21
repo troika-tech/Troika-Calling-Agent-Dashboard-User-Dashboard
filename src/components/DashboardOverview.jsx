@@ -429,7 +429,7 @@ const DashboardOverview = () => {
 
     // Use chart data from backend endpoint if available (for Calls Over Time chart)
     let callsOverTimeData = [];
-    
+
     if (callChartData && callChartData.chartData && Array.isArray(callChartData.chartData)) {
       // Use the chart data from backend endpoint
       callsOverTimeData = callChartData.chartData.map(item => {
@@ -587,19 +587,19 @@ const DashboardOverview = () => {
   const WeeklyTick = ({ x, y, payload, index }) => {
     // In Recharts BarChart, try multiple ways to access the data
     let dataPoint = payload?.payload;
-    
+
     // If payload.payload doesn't work, try to find by index
     if (!dataPoint && weeklyCallsOverTime && typeof index === 'number') {
       dataPoint = weeklyCallsOverTime[index];
     }
-    
+
     // If still no data, try payload directly
     if (!dataPoint) {
       dataPoint = payload;
     }
-    
+
     if (!dataPoint) return null;
-    
+
     if (isMobile) {
       // Mobile: Show only date (20/11) at the bottom
       return (
@@ -670,7 +670,7 @@ const DashboardOverview = () => {
       setLoadingDetails(true);
       setSelectedCampaign(campaignId);
       setShowCampaignModal(true);
-      
+
       // Fetch campaign details
       const response = await campaignAPI.get(campaignId);
       const campaignData = response.data || response;
@@ -692,14 +692,14 @@ const DashboardOverview = () => {
       setLoadingCallDetails(true);
       setSelectedPhoneNumber(phoneNumber);
       setShowCallModal(true);
-      
+
       // Fetch call details by phone number
-      const response = await callAPI.getAllCalls({ 
+      const response = await callAPI.getAllCalls({
         phoneNumbers: [phoneNumber],
         limit: 1,
         sort: 'desc'
       });
-      
+
       const calls = response.data?.calls || response.data || [];
       if (calls.length > 0) {
         setCallDetails({
@@ -731,11 +731,10 @@ const DashboardOverview = () => {
     <div className="space-y-6">
       {/* Credit Update Notification Toast */}
       {creditNotification && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg border transition-all duration-300 ${
-          creditNotification.type === 'addition' 
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg border transition-all duration-300 ${creditNotification.type === 'addition'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
             : 'bg-amber-50 border-amber-200 text-amber-800'
-        }`}>
+          }`}>
           <div className="flex items-center gap-2">
             {creditNotification.type === 'addition' ? (
               <FaArrowUp className="text-emerald-500" />
@@ -754,15 +753,7 @@ const DashboardOverview = () => {
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             <span>Live Voice AI Operations</span>
           </div>
-          {config.demoMode && (
-            <div className="inline-flex items-center gap-2 rounded-full bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-700 border border-purple-200">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-purple-500"></span>
-              </span>
-              <span>Exhibition Demo Mode</span>
-            </div>
-          )}
+          {/* Exhibition Demo Mode tag removed */}
         </div>
         <div className="flex items-center justify-between">
           <div>
@@ -842,21 +833,18 @@ const DashboardOverview = () => {
                     <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500">
                       {kpi.title}
                     </p>
-                    <div className={`text-xl font-semibold tabular-nums ${
-                      kpi.warning ? "text-red-500" : "text-zinc-900"
-                    }`}>
+                    <div className={`text-xl font-semibold tabular-nums ${kpi.warning ? "text-red-500" : "text-zinc-900"
+                      }`}>
                       {kpi.value}
                     </div>
                   </div>
                   <div
-                    className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white ${
-                      isEmerald && "border-emerald-200 bg-gradient-to-br from-emerald-100 to-teal-100"
-                    }`}
+                    className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white ${isEmerald && "border-emerald-200 bg-gradient-to-br from-emerald-100 to-teal-100"
+                      }`}
                   >
                     <Icon
-                      className={`h-4 w-4 ${
-                        isEmerald ? "text-emerald-500" : "text-zinc-500"
-                      }`}
+                      className={`h-4 w-4 ${isEmerald ? "text-emerald-500" : "text-zinc-500"
+                        }`}
                     />
                   </div>
                 </div>
@@ -867,9 +855,8 @@ const DashboardOverview = () => {
                       {kpi.title === 'Credit Balance' ? 'Status' : ''}
                     </span>
                     {kpi.title === 'Credit Balance' && (
-                      <span className={`font-medium ${
-                        kpi.warning ? 'text-red-500' : changeColor
-                      }`}>
+                      <span className={`font-medium ${kpi.warning ? 'text-red-500' : changeColor
+                        }`}>
                         {kpi.change}
                       </span>
                     )}
@@ -992,15 +979,15 @@ const DashboardOverview = () => {
             <ResponsiveContainer width="100%" height={isMobile ? 280 : 280}>
               <BarChart data={weeklyCallsOverTime} margin={{ bottom: isMobile ? 10 : 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="day" 
-                  stroke="#71717a" 
+                <XAxis
+                  dataKey="day"
+                  stroke="#71717a"
                   tick={<WeeklyTick />}
                   interval={0}
                   height={isMobile ? 50 : 60}
                 />
-                <YAxis 
-                  stroke="#71717a" 
+                <YAxis
+                  stroke="#71717a"
                   tick={{ fontSize: 11 }}
                   width={40}
                 />
@@ -1032,16 +1019,16 @@ const DashboardOverview = () => {
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={callsOverTimeData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="time" 
-                  stroke="#71717a" 
+                <XAxis
+                  dataKey="time"
+                  stroke="#71717a"
                   tick={{ fontSize: 11 }}
                   angle={-45}
                   textAnchor="end"
                   height={60}
                 />
-                <YAxis 
-                  stroke="#71717a" 
+                <YAxis
+                  stroke="#71717a"
                   tick={{ fontSize: 11 }}
                   width={40}
                 />
@@ -1074,13 +1061,13 @@ const DashboardOverview = () => {
 
       {/* Campaign Details Modal */}
       {showCampaignModal && createPortal(
-        <div 
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4" 
-          style={{ 
-            position: 'fixed', 
-            top: 0, 
-            left: 0, 
-            right: 0, 
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
             bottom: 0,
             zIndex: 1000
           }}
@@ -1090,11 +1077,11 @@ const DashboardOverview = () => {
             setCampaignDetails(null);
           }}
         >
-          <div 
-            className="glass-card rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto bg-white border border-zinc-200" 
+          <div
+            className="glass-card rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto bg-white border border-zinc-200"
             onClick={(e) => e.stopPropagation()}
-            style={{ 
-              position: 'relative', 
+            style={{
+              position: 'relative',
               zIndex: 1001,
               margin: 'auto'
             }}
@@ -1137,22 +1124,22 @@ const DashboardOverview = () => {
                     <div>
                       <p className="text-sm font-medium text-zinc-500 mb-1">Created At</p>
                       <p className="text-sm text-zinc-700">
-                        {campaignDetails.createdAt 
-                          ? new Date(campaignDetails.createdAt).toLocaleString('en-US', { 
-                              month: 'long', 
-                              day: 'numeric', 
-                              year: 'numeric', 
-                              hour: 'numeric', 
-                              minute: '2-digit',
-                              hour12: true 
-                            })
+                        {campaignDetails.createdAt
+                          ? new Date(campaignDetails.createdAt).toLocaleString('en-US', {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })
                           : 'N/A'}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-zinc-500 mb-1">Start Time</p>
                       <p className="text-sm text-zinc-700">
-                        {campaignDetails.startTime || campaignDetails.startDate 
+                        {campaignDetails.startTime || campaignDetails.startDate
                           ? new Date(campaignDetails.startTime || campaignDetails.startDate).toLocaleString()
                           : 'N/A'}
                       </p>
@@ -1160,7 +1147,7 @@ const DashboardOverview = () => {
                     <div>
                       <p className="text-sm font-medium text-zinc-500 mb-1">End Time</p>
                       <p className="text-sm text-zinc-700">
-                        {campaignDetails.endTime || campaignDetails.endDate 
+                        {campaignDetails.endTime || campaignDetails.endDate
                           ? new Date(campaignDetails.endTime || campaignDetails.endDate).toLocaleString()
                           : 'N/A'}
                       </p>
@@ -1171,15 +1158,14 @@ const DashboardOverview = () => {
                     <div>
                       <p className="text-sm font-medium text-zinc-500 mb-1">Status</p>
                       <div>
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                          campaignDetails.status === 'active' 
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${campaignDetails.status === 'active'
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                             : campaignDetails.status === 'paused'
-                            ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
-                            : campaignDetails.status === 'completed'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'bg-zinc-50 text-zinc-700 border border-zinc-200'
-                        }`}>
+                              ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                              : campaignDetails.status === 'completed'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                : 'bg-zinc-50 text-zinc-700 border border-zinc-200'
+                          }`}>
                           <span className="h-1.5 w-1.5 rounded-full bg-current" />
                           {campaignDetails.status ? campaignDetails.status.charAt(0).toUpperCase() + campaignDetails.status.slice(1) : 'N/A'}
                         </span>
@@ -1246,13 +1232,13 @@ const DashboardOverview = () => {
 
       {/* Call Details Modal */}
       {showCallModal && createPortal(
-        <div 
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4" 
-          style={{ 
-            position: 'fixed', 
-            top: 0, 
-            left: 0, 
-            right: 0, 
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
             bottom: 0,
             zIndex: 1000
           }}
@@ -1262,11 +1248,11 @@ const DashboardOverview = () => {
             setCallDetails(null);
           }}
         >
-          <div 
-            className="glass-card rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto bg-white border border-zinc-200" 
+          <div
+            className="glass-card rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto bg-white border border-zinc-200"
             onClick={(e) => e.stopPropagation()}
-            style={{ 
-              position: 'relative', 
+            style={{
+              position: 'relative',
               zIndex: 1001,
               margin: 'auto'
             }}
@@ -1320,24 +1306,24 @@ const DashboardOverview = () => {
                     <div>
                       <p className="text-sm font-medium text-zinc-500 mb-1">Started At</p>
                       <p className="text-sm text-zinc-700">
-                        {callDetails.startedAt 
-                          ? new Date(callDetails.startedAt).toLocaleString('en-US', { 
-                              month: 'long', 
-                              day: 'numeric', 
-                              year: 'numeric', 
-                              hour: 'numeric', 
-                              minute: '2-digit',
-                              hour12: true 
-                            })
+                        {callDetails.startedAt
+                          ? new Date(callDetails.startedAt).toLocaleString('en-US', {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })
                           : callDetails.createdAt
-                          ? new Date(callDetails.createdAt).toLocaleString()
-                          : 'N/A'}
+                            ? new Date(callDetails.createdAt).toLocaleString()
+                            : 'N/A'}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-zinc-500 mb-1">Ended At</p>
                       <p className="text-sm text-zinc-700">
-                        {callDetails.endedAt 
+                        {callDetails.endedAt
                           ? new Date(callDetails.endedAt).toLocaleString()
                           : 'N/A'}
                       </p>
@@ -1373,11 +1359,11 @@ const DashboardOverview = () => {
                     <div>
                       <p className="text-sm font-medium text-zinc-500 mb-1">Duration</p>
                       <p className="text-sm font-semibold text-zinc-900">
-                        {callDetails.duration 
+                        {callDetails.duration
                           ? formatDuration(callDetails.duration)
                           : callDetails.durationSec
-                          ? formatDuration(callDetails.durationSec)
-                          : 'N/A'}
+                            ? formatDuration(callDetails.durationSec)
+                            : 'N/A'}
                       </p>
                     </div>
                     <div>

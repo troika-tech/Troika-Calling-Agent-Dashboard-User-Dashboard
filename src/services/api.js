@@ -154,41 +154,73 @@ export const callAPI = {
     if (DEMO_MODE) {
       await mockDelay(300);
 
-      // Generate 4 completed calls with high durations
-      const topCalls = [];
-      let index = 0;
-      let attempts = 0;
-      const maxAttempts = 100; // Safety limit
+      // Custom filtering as per user request:
+      // 1. Keep call with duration 10:58 (658 seconds)
+      // 2. Keep call with duration 07:15 (435 seconds)
+      // 3. Exclude top calls: 30:48 (1848s), 27:14 (1634s), 11:28 (688s)
+      // 4. Exclude second batch: 09:40 (580s), 08:42 (522s), 08:41 (521s)
+      // 5. Exclude third batch: 07:57 (477s), 07:56 (476s), 07:46 (466s)
+      // 6. Exclude fourth batch: 07:33 (453s), 06:48 (408s)
+      // 7. Exclude fifth batch: 06:35 (395s), 06:34 (394s)
+      // 8. Exclude sixth batch: 06:25 (385s), 06:22 (382s)
+      // 9. Status must be 'completed'
+      // 10. Duration > 2 minutes (120s)
 
-      while (topCalls.length < 4 && attempts < maxAttempts) {
-        const call = demoDataGenerator.generateCall(
-          index,
-          'campaign-1',
-          'New Feature Announcement',
-          'sales'
-        );
+      const excludedDurations = [1848, 1634, 688, 580, 522, 521, 477, 476, 466, 453, 408, 395, 394, 385, 382];
 
-        // Only include completed calls with duration > 100 seconds
-        if (call.status === 'completed' && call.duration > 100) {
-          topCalls.push({
-            ...call,
-            // Convert duration to milliseconds for consistency with backend
-            durationSec: call.duration * 1000,
-            campaignId: { name: call.campaignName },
-            agentId: { name: call.agentName },
-          });
-        }
+      const filteredCalls = dbRealCalls.filter(call => {
+        const duration = call.durationSec || call.duration || 0;
 
-        index++;
-        attempts++;
-      }
+        // Critical checks
+        if (call.status !== 'completed') return false;
+        if (duration <= 120) return false;
+        if (excludedDurations.includes(duration)) return false;
+
+        return true;
+      });
 
       // Sort by duration descending
-      topCalls.sort((a, b) => b.durationSec - a.durationSec);
+      filteredCalls.sort((a, b) => {
+        const durA = a.durationSec || a.duration || 0;
+        const durB = b.durationSec || b.duration || 0;
+        return durB - durA;
+      });
+
+      const topCalls = filteredCalls.slice(0, 4).map(call => ({
+        ...call,
+        // Ensure durationSec is consistent
+        durationSec: (call.durationSec || call.duration || 0) * 1000, // Frontend expects ms if we look at DashboardOverview:123 ? 
+        // Wait, DashboardOverview line 122: if (durationMs > 10000) ... 
+        // The original random generator did: durationSec: call.duration * 1000. 
+        // But the dbRealCalls has durationSec as seconds (e.g. 97).
+        // If I pass 97, formatDuration will think it is seconds (97 < 10000). 
+        // If I pass 97000, it filters > 10000 and divides by 1000 -> 97s.
+        // Let's stick to milliseconds to be safe and consistent with previous "durationSec" naming in this specific mock function,
+        // BUT `dbRealCalls` has `durationSec` as seconds.
+        // Let's pass it as milliseconds to match the previous mock behavior which seemed to imply ms for `durationSec` key despite the name, OR rely on the frontend helper that handles both.
+        // Frontend `formatDuration` handles both. If I pass 130 (seconds), it renders correctly. 
+        // However, the previous mock code did: `durationSec: call.duration * 1000`.
+        // Let's just pass raw seconds from DB but multiply by 1000 to be safe/consistent with previous mock expectations if any variables relied on it being ms.
+        // Actually, let's look at `DashboardOverview.jsx`:
+        // const durationMs = call.durationSec || 0;
+        // const durationFormatted = formatDuration(durationMs);
+        // formatDuration checks > 10000. 120 seconds = 120. 120 < 10000 -> treated as seconds.
+        // So raw seconds is fine. BUT, let's look at the previous mock implementation I'm replacing:
+        // `durationSec: call.duration * 1000` -> this was definitely sending MS.
+        // If I change it, it might be fine, but let's stick to MS to avoid ambiguity.
+        durationSec: (call.durationSec || call.duration || 0) * 1000,
+
+        // Ensure campaign/agent names are accessible
+        campaignId: call.campaignId || { name: call.campaignName || 'Campaign' },
+        campaignName: call.campaignName || 'Campaign',
+        agentId: call.agentId || { name: call.agentName || 'Agent' },
+        agentName: call.agentName || 'Agent',
+        phoneNumber: call.toPhone || call.fromPhone
+      }));
 
       return {
         data: {
-          calls: topCalls.slice(0, 4)
+          calls: topCalls
         }
       };
     }
