@@ -66,6 +66,7 @@ const CallLogs = () => {
     callType: '',
     startDate: '',
     endDate: '',
+    transferStatus: '',
   });
   const [dateError, setDateError] = useState('');
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -182,6 +183,7 @@ const CallLogs = () => {
       }
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
+      if (filters.transferStatus) params.transferStatus = filters.transferStatus;
 
       // Validate dates before making API call
       if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
@@ -234,14 +236,15 @@ const CallLogs = () => {
       }
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
+      if (filters.transferStatus) params.transferStatus = filters.transferStatus;
 
       console.log('Export API params:', params);
       const response = await callAPI.getAllCalls(params);
-      
+
       if (!response || !response.data) {
         throw new Error('Invalid response from server');
       }
-      
+
       const allCalls = response.data?.calls || response.data || [];
 
       if (allCalls.length === 0) {
@@ -263,7 +266,8 @@ const CallLogs = () => {
         'Start Time',
         'End Time',
         'Agent Name',
-        'Campaign Name'
+        'Campaign Name',
+        'Transfer Requested'
       ];
 
       const csvRows = [headers.join(',')];
@@ -280,6 +284,7 @@ const CallLogs = () => {
           `"${call.endedAt ? new Date(call.endedAt).toLocaleString() : ''}"`,
           `"${call.agentId?.name || ''}"`,
           `"${call.campaignId?.name || ''}"`,
+          `"${call.metadata?.transferRequested ? 'Yes' : 'No'}"`
         ];
         csvRows.push(row.join(','));
       });
@@ -308,10 +313,10 @@ const CallLogs = () => {
       toast.success('Call logs exported successfully!');
     } catch (err) {
       console.error('Error exporting calls:', err);
-      const errorMessage = err.response?.data?.error?.message || 
-                          err.response?.data?.error || 
-                          err.message || 
-                          'Failed to export calls. Please try again.';
+      const errorMessage = err.response?.data?.error?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        'Failed to export calls. Please try again.';
       toast.error(errorMessage);
       setError(errorMessage);
     } finally {
@@ -323,7 +328,7 @@ const CallLogs = () => {
   const handleDownloadRecording = async (recordingUrl, callId) => {
     toast.info('Downloading recording...');
     const success = await downloadRecording(callId, `call_recording_${callId || Date.now()}.mp3`);
-    
+
     if (success) {
       toast.success('Recording downloaded successfully');
     } else {
@@ -345,13 +350,13 @@ const CallLogs = () => {
 
     try {
       setTranslating(true);
-      
+
       // Translate transcript
       const transcriptResponse = await translateAPI.translateTranscript(
         selectedCall.transcript,
         selectedLanguage
       );
-      
+
       if (transcriptResponse.success && transcriptResponse.data?.transcript) {
         setTranslatedTranscript(transcriptResponse.data.transcript);
         setShowTranslated(true);
@@ -438,7 +443,7 @@ const CallLogs = () => {
 
       {/* Filters */}
       <div className="glass-panel p-4 relative z-20">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div>
             <label className="block text-xs font-medium text-zinc-600 mb-2">
               Call Type
@@ -498,9 +503,8 @@ const CallLogs = () => {
                   setPagination({ ...pagination, page: 1 });
                 }
               }}
-              className={`w-full px-4 py-2 border rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 text-xs ${
-                dateError ? 'border-red-300' : 'border-zinc-200'
-              }`}
+              className={`w-full px-4 py-2 border rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 text-xs ${dateError ? 'border-red-300' : 'border-zinc-200'
+                }`}
             />
           </div>
           <div>
@@ -525,10 +529,25 @@ const CallLogs = () => {
                   setPagination({ ...pagination, page: 1 });
                 }
               }}
-              className={`w-full px-4 py-2 border rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 text-xs ${
-                dateError ? 'border-red-300' : 'border-zinc-200'
-              }`}
+              className={`w-full px-4 py-2 border rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 text-xs ${dateError ? 'border-red-300' : 'border-zinc-200'
+                }`}
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-2">
+              Transfer Status
+            </label>
+            <select
+              value={filters.transferStatus}
+              onChange={(e) => {
+                setFilters({ ...filters, transferStatus: e.target.value });
+                setPagination({ ...pagination, page: 1 });
+              }}
+              className="w-full px-4 py-2 border border-zinc-200 rounded-lg bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-400 text-xs"
+            >
+              <option value="">All Calls</option>
+              <option value="transferred">Transferred</option>
+            </select>
           </div>
           <div className="flex items-end">
             <button
@@ -538,6 +557,7 @@ const CallLogs = () => {
                   callType: '',
                   startDate: '',
                   endDate: '',
+                  transferStatus: '',
                 });
                 setDateError('');
                 setPagination({ ...pagination, page: 1 });
@@ -592,6 +612,9 @@ const CallLogs = () => {
                   Failure Reason
                 </th>
                 <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">
+                  Transfer
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">
                   Details
                 </th>
               </tr>
@@ -599,7 +622,7 @@ const CallLogs = () => {
             <tbody className="divide-y divide-zinc-100">
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-4 py-8 text-center">
+                  <td colSpan="10" className="px-4 py-8 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <FaSpinner className="animate-spin text-emerald-500" size={20} />
                       <span className="text-zinc-500 text-sm">Loading...</span>
@@ -608,7 +631,7 @@ const CallLogs = () => {
                 </tr>
               ) : calls.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-4 py-8 text-center text-zinc-500 text-sm">
+                  <td colSpan="10" className="px-4 py-8 text-center text-zinc-500 text-sm">
                     No calls found
                   </td>
                 </tr>
@@ -617,8 +640,8 @@ const CallLogs = () => {
                   // Check if call failed due to insufficient credits
                   const isInsufficientCredits = call.status === 'failed' &&
                     (call.errorMessage?.includes('insufficient credits') ||
-                     call.errorMessage?.includes('Insufficient credits') ||
-                     call.metadata?.errorReason === 'insufficient_credits');
+                      call.errorMessage?.includes('Insufficient credits') ||
+                      call.metadata?.errorReason === 'insufficient_credits');
 
                   return (
                     <tr
@@ -655,6 +678,16 @@ const CallLogs = () => {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {call.failureReason ? getFailureReasonBadge(call.failureReason) : <span className="text-xs text-zinc-400">-</span>}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {call.metadata?.transferRequested ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                            <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
+                            Triggered
+                          </span>
+                        ) : (
+                          <span className="text-xs text-zinc-400">-</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <button
@@ -798,7 +831,7 @@ const CallLogs = () => {
                         </option>
                       ))}
                     </select>
-                    
+
                     <button
                       onClick={handleTranslate}
                       disabled={!selectedLanguage || translating}
@@ -816,7 +849,7 @@ const CallLogs = () => {
                         </>
                       )}
                     </button>
-                    
+
                     {showTranslated && (
                       <button
                         onClick={handleShowOriginal}
@@ -854,11 +887,10 @@ const CallLogs = () => {
                           className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}
                         >
                           <div
-                            className={`max-w-[75%] p-3 rounded-lg ${
-                              isUser
-                                ? 'bg-blue-50 border border-blue-200 rounded-tl-none'
-                                : 'bg-emerald-50 border border-emerald-200 rounded-tr-none'
-                            }`}
+                            className={`max-w-[75%] p-3 rounded-lg ${isUser
+                              ? 'bg-blue-50 border border-blue-200 rounded-tl-none'
+                              : 'bg-emerald-50 border border-emerald-200 rounded-tr-none'
+                              }`}
                           >
                             <div className="flex items-center justify-between mb-1 gap-2">
                               <span className="text-xs font-medium text-zinc-600">
