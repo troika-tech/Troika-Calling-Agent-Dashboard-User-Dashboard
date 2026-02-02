@@ -73,13 +73,13 @@ const Leads = () => {
       // Group calls by phone number to create leads
       const leadsMap = new Map();
       const callDataMap = new Map(); // Store call data for each lead
-      
+
       calls.forEach(call => {
         const phone = call.direction === 'outbound' ? call.toPhone : call.fromPhone;
         if (!phone) return;
 
         const detectedKeywords = call.detectedKeywords || [];
-        
+
         if (!leadsMap.has(phone)) {
           const lead = {
             _id: call._id, // Use actual call ID for status updates
@@ -108,7 +108,7 @@ const Leads = () => {
         } else {
           const lead = leadsMap.get(phone);
           lead.totalCalls += 1;
-          
+
           // Merge keywords
           const existingKeywords = Array.isArray(lead.detectedKeywords) ? lead.detectedKeywords : [];
           const newKeywords = Array.isArray(detectedKeywords) ? detectedKeywords : [];
@@ -116,13 +116,13 @@ const Leads = () => {
           lead.notes = lead.detectedKeywords.length > 0
             ? `Keywords detected: ${lead.detectedKeywords.join(', ')}`
             : 'Lead detected';
-          
+
           // Update with most recent call data (prefer calls with recording/transcript)
-          const shouldUpdate = 
+          const shouldUpdate =
             new Date(call.startedAt || call.createdAt) > new Date(lead.lastCallDate) ||
             (call.recordingUrl && !lead.recordingUrl) ||
             (call.transcript && call.transcript.length > (lead.transcript?.length || 0));
-            
+
           if (shouldUpdate) {
             lead.lastCallDate = call.startedAt || call.createdAt;
             lead.lastCallStatus = call.status;
@@ -421,7 +421,7 @@ const Leads = () => {
           Math.floor(lead.duration),
           `"${lead.lastCallDate ? new Date(lead.lastCallDate).toLocaleString() : 'N/A'}"`,
           `"${lead.detectedKeywords && lead.detectedKeywords.length > 0 ? lead.detectedKeywords.join('; ') : 'None'}"`,
-          `"${lead.campaignName || 'N/A'}"`
+          `"${lead.callType === 'Incoming' ? '' : lead.campaignName || ''}"`
         ];
         csvRows.push(row.join(','));
       });
@@ -498,7 +498,7 @@ const Leads = () => {
 
     try {
       setTranslating(true);
-      
+
       const response = await translateAPI.translateTranscript(
         selectedLead.transcript,
         selectedLanguage
@@ -532,7 +532,7 @@ const Leads = () => {
 
     // Use sessionId first (works across both CallLog and LeadsCallLog), then fallback to callId/_id
     const callId = selectedLead?.sessionId || selectedLead?.callId || selectedLead?._id;
-    
+
     if (!callId) {
       toast.error('Call ID not found');
       return;
@@ -540,7 +540,7 @@ const Leads = () => {
 
     toast.info('Downloading recording...');
     const success = await downloadRecording(callId, `call_recording_${callId}.mp3`);
-    
+
     if (success) {
       toast.success('Recording downloaded successfully');
     } else {
@@ -662,6 +662,7 @@ const Leads = () => {
               <tr className="bg-gradient-to-r from-emerald-50/80 to-teal-50/80 border-b border-zinc-200">
                 <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">LEADS</th>
                 <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">Call Type</th>
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">CAMPAIGN</th>
                 <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">Duration</th>
                 <th className="px-4 py-3 text-left text-[11px] font-medium text-zinc-600 uppercase tracking-[0.16em]">
                   <div className="flex items-center gap-1.5 cursor-pointer hover:text-zinc-900 transition-colors" onClick={() => setDateSortOrder(dateSortOrder === 'desc' ? 'asc' : 'desc')}>
@@ -693,6 +694,11 @@ const Leads = () => {
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-sm text-zinc-600">{lead.callType || 'Unknown'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-zinc-600">
+                        {lead.callType === 'Incoming' ? '' : lead.campaignName || '-'}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-sm font-medium text-zinc-900">{formatDuration(lead.duration)}</div>
@@ -740,22 +746,19 @@ const Leads = () => {
                       <button
                         onClick={() => handleToggleStatus(lead)}
                         disabled={updatingStatus === lead._id}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
-                          lead.actionStatus === 'completed'
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${lead.actionStatus === 'completed'
                             ? 'bg-emerald-500'
                             : 'bg-zinc-300'
-                        } ${updatingStatus === lead._id ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
+                          } ${updatingStatus === lead._id ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
                         title={lead.actionStatus === 'completed' ? 'Mark as Pending' : 'Mark as Completed'}
                       >
                         <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
-                            lead.actionStatus === 'completed' ? 'translate-x-6' : 'translate-x-1'
-                          }`}
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${lead.actionStatus === 'completed' ? 'translate-x-6' : 'translate-x-1'
+                            }`}
                         />
                       </button>
-                      <span className={`ml-2 text-[10px] font-medium ${
-                        lead.actionStatus === 'completed' ? 'text-emerald-600' : 'text-zinc-500'
-                      }`}>
+                      <span className={`ml-2 text-[10px] font-medium ${lead.actionStatus === 'completed' ? 'text-emerald-600' : 'text-zinc-500'
+                        }`}>
                         {lead.actionStatus === 'completed' ? 'Done' : 'Pending'}
                       </span>
                     </td>
@@ -924,7 +927,7 @@ const Leads = () => {
                       </option>
                     ))}
                   </select>
-                  
+
                   <button
                     onClick={handleTranslate}
                     disabled={!selectedLanguage || translating}
@@ -942,7 +945,7 @@ const Leads = () => {
                       </>
                     )}
                   </button>
-                  
+
                   {showTranslated && (
                     <button
                       onClick={handleShowOriginal}
@@ -974,7 +977,7 @@ const Leads = () => {
                   >
                     Your browser does not support the audio element.
                   </audio>
-                  
+
                   {/* Download Button */}
                   <div className="flex items-center gap-2">
                     <button
@@ -1014,18 +1017,17 @@ const Leads = () => {
                   {(showTranslated && translatedTranscript ? translatedTranscript : selectedLead.transcript).map((entry, idx) => {
                     const isUser = entry.speaker === 'user' || entry.role === 'user' || entry.speaker === 'customer';
                     const text = entry.text || entry.content || '';
-                    
+
                     return (
                       <div
                         key={idx}
                         className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}
                       >
                         <div
-                          className={`max-w-[75%] p-3 rounded-lg ${
-                            isUser
+                          className={`max-w-[75%] p-3 rounded-lg ${isUser
                               ? 'bg-blue-50 border border-blue-200 rounded-tl-none'
                               : 'bg-emerald-50 border border-emerald-200 rounded-tr-none'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between mb-1 gap-2">
                             <span className="text-xs font-medium text-zinc-600">
