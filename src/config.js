@@ -75,7 +75,7 @@ const config = {
   wsBaseUrl: getWsUrl(),
 
   // Demo Mode Configuration
-  demoMode: true, // Change to false to use real API
+  demoMode: false, // Change to false to use real API
   demo: {
     // Exhibition stats (realistic numbers for showcase)
     totalCalls: 119847,        // Changed from 120000

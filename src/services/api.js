@@ -389,7 +389,7 @@ export const callAPI = {
       const pageIndices = leadIndices.slice(startIndex, endIndex);
 
       const leads = pageIndices.map((index, i) => {
-        const call = demoDataGenerator.generateCall(index, config.demo.totalCalls, config);
+        const call = demoDataGenerator.generateCall(index, `campaign-${(index % 5) + 1}`, 'Lead Generation Campaign', 'sales');
         const keywords = getKeywords(index + i);
 
         // Ensure lead has positive duration (answered calls only)
